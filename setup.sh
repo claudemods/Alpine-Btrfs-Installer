@@ -59,8 +59,7 @@ btrfs subvolume create /mnt/@tmp
 btrfs subvolume create /mnt/@opt
 btrfs subvolume create /mnt/@srv
 
-# Unmount to remount with subvolumes
-umount /mnt
+
 
 # Mount with subvolumes and compression
 echo "Remounting with subvolumes and zstd:$COMPRESS_LEVEL compression..."
