@@ -84,9 +84,16 @@ mount -t proc none /mnt/proc
 mount --rbind /dev /mnt/dev
 mount --rbind /sys /mnt/sys
 
+echo "Creating BTRFS control device..."
+mknod /mnt/dev/btrfs-control c 10 234
+chmod 600 /mnt/dev/btrfs-control
+
 # Create chroot script
 cat << CHROOT > /mnt/setup-chroot.sh
 #!/bin/ash
+
+echo "Configuring persistent BTRFS control device..."
+echo "btrfs-control" >> /etc/mdev.conf
 
 # Set root password
 echo "Setting root password..."
