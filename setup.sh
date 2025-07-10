@@ -47,7 +47,15 @@ umount /mnt
 mount -o subvol=@,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt
 mkdir -p /mnt/boot/efi
 mount "${TARGET_DISK}1" /mnt/boot/efi
-mkdir -p /mnt/{home,root,srv,tmp,var/{cache,log}}
+
+mkdir -p /mnt/home
+mkdir -p /mnt/root
+mkdir -p /mnt/srv
+mkdir -p /mnt/tmp
+mkdir -p /mnt/var/cache
+mkdir -p /mnt/var/log
+
+
 
 mount -o subvol=@home,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/home
 mount -o subvol=@root,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/root
