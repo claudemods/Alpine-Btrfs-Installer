@@ -1,9 +1,13 @@
-# Alpine-Btrfs-Plasma-Installer
-bash script to install alpine as btrfs with any desktop
-
 <p align="center">
   <img src="https://i.postimg.cc/d1VR617H/alpine.webp">
 </p>
+
+
+
+
+# Alpine-Btrfs-Plasma-Installer
+bash script to install alpine as btrfs with any desktop
+
 
 
 
