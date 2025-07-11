@@ -15,6 +15,14 @@
     <img alt="Homepage" src="https://i.postimg.cc/Hs2vbbZ8/Deep-Seek-Homepage.png" style="height: 30px; width: auto;">
   </a>
 
+   <h2><a href="https://github.com/claudemods/Alpine-Btrfs-Installer/tree/main/Photos">📸 Click Here For Photos</a></h2>
+</div>
+
+   <h2><a href="https://github.com/claudemods/btrfssystemcloner">📸 Clone Your Alpine Btrfs System Today</a></h2>
+</div>
+
+
+
   <p>bash script to install alpine as btrfs with any desktop</p>
 
   <div align="center">
@@ -41,5 +49,4 @@ chmod +x *.sh
 
   <p>i will provide .img with this installer inside</p>
 
-  <h2><a href="https://github.com/claudemods/Alpine-Btrfs-Installer/tree/main/Photos">📸 Click Here For Photos</a></h2>
-</div>
+ 
