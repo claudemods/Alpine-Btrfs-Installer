@@ -1,4 +1,4 @@
-here is a photos of the two scripts to use gui install dialog
+here is photos of the two scripts to use gui install dialog
 
 <img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_18:09:33" src="https://github.com/user-attachments/assets/ba0192b6-d8f5-4ad1-8087-cc5c12193e19" />
 
