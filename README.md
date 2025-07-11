@@ -26,7 +26,7 @@
 </div>
 
   <div align="center">
-  <p>bash script to install alpine as btrfs with any desktop currently lts kernel is onyl supported</p>
+  <p>bash script to install alpine as btrfs with any desktop currently lts kernel is only supported</p>
 
   <div align="center">
     <p>alpine btrfs subvolumes</p>
