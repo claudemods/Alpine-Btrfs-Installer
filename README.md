@@ -21,6 +21,9 @@
    <h2><a href="https://github.com/claudemods/btrfssystemcloner">🖥️🔄 Clone Your Alpine Btrfs System Today</a></h2>
 </div>
 
+<div align="center">
+   <h2><a href="https://www.youtube.com/watch?v=nnSCQLa2Hnw">🖥️🔄 Watch My Youtube Guide</a></h2>
+</div>
 
   <div align="center">
   <p>bash script to install alpine as btrfs with any desktop</p>
