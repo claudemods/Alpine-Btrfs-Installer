@@ -5,7 +5,7 @@
 
 
 
-# Alpine-Btrfs-Plasma-Installer
+# Alpine-Btrfs-Installer
 bash script to install alpine as btrfs with any desktop
 
 
