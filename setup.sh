@@ -155,8 +155,8 @@ EOF
 
 # KDE Plasma
 echo -e "${CYAN}Choose Your Desktop...${NC}"
-cyan_output apk update
-cyan_output setup-desktop
+apk update
+setup-desktop
 
 # Bootloader
 echo -e "${CYAN}Installing bootloader...${NC}"
@@ -166,9 +166,9 @@ cyan_output grub-mkconfig -o /boot/grub/grub.cfg
 
 # Enable services
 echo -e "${CYAN}Enabling services...${NC}"
-cyan_output rc-update add dbus
-cyan_output rc-update add sddm
-cyan_output rc-update add networkmanager
+rc-update add dbus
+rc-update add sddm
+rc-update add networkmanager
 
 # Cleanup
 rm /setup-chroot.sh
@@ -177,11 +177,11 @@ CHROOT
 # Execute configuration
 echo -e "${CYAN}Running chroot configuration...${NC}"
 chmod +x /mnt/setup-chroot.sh
-cyan_output chroot /mnt /setup-chroot.sh
+chroot /mnt /setup-chroot.sh
 
 # Finalize
 echo -e "${CYAN}Finalizing installation...${NC}"
-cyan_output umount -l /mnt
+umount -l /mnt
 echo -e "${CYAN}Installation complete!${NC}"
 
 # Post-install options
