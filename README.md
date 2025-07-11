@@ -37,7 +37,7 @@
   <pre>git clone https://github.com/claudemods/Alpine-Btrfs-Installer
 cd Alpine-Btrfs-Installer
 chmod +x *.sh
-./install.sh</pre>
+./installer-gui-using-dialog.sh</pre>
 
   <ul>
     <li>Setup system credentials 🔐</li>
