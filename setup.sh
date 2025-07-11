@@ -32,7 +32,8 @@ fi
 
 # Enable main and community repositories
 echo -e "${CYAN}Enabling main and community repositories...${NC}"
-cyan_output sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n/' /etc/apk/repositories
+cyan_output sed -i 's/^#.*@community/&/' /etc/apk/repositories
+cyan_output sed -i 's/^#.*@main/&/' /etc/apk/repositories
 cyan_output apk update
 
 # Ask for configuration
