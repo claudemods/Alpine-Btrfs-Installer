@@ -24,7 +24,9 @@ bash script to install alpine as btrfs with any desktop
 
 
 
-install git and then in konsole simple type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute
+install git and then in konsole 
+
+simply type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute
 
 
 i will provide .img with this installer inside
