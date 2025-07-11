@@ -2,6 +2,7 @@
   <img src="https://i.postimg.cc/d1VR617H/alpine.webp">
 </p>
 
+<div align="center">
 
 <a href="https://www.alpinelinux.org/" target="_blank"><img src="https://img.shields.io/badge/DISTRO-Alpine-00FFFF?style=for-the-badge&logo=Alpine" /></a>
 
