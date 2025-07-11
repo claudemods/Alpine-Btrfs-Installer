@@ -30,12 +30,6 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Enable main and community repositories
-echo -e "${CYAN}Enabling main and community repositories...${NC}"
-cyan_output sed -i 's/^#.*@community/&/' /etc/apk/repositories
-cyan_output sed -i 's/^#.*@main/&/' /etc/apk/repositories
-cyan_output apk update
-
 # Ask for configuration
 echo -ne "${CYAN}Enter target disk (e.g. /dev/sda): ${NC}"
 read TARGET_DISK
@@ -54,24 +48,6 @@ echo -ne "${CYAN}Enter root password: ${NC}"
 read -s ROOT_PASSWORD
 echo
 
-# Kernel selection (only from main and community repos)
-echo -e "${CYAN}"
-echo "Select kernel to install:"
-echo "1) linux-lts - Long-term support kernel, configured for a generous selection of hardware"
-echo "2) linux-virt - Long-term support kernel, configured for VM guests"
-echo "3) linux-stable - Stable kernel, configured for a generous selection of hardware (community)"
-echo "4) linux-openpax - Kernel with OpenPAX patches for memory safety (community)"
-echo -ne "Enter choice (1-4, default 1): ${NC}"
-read KERNEL_CHOICE
-
-case $KERNEL_CHOICE in
-    1) KERNEL_PKG="linux-lts" ;;
-    2) KERNEL_PKG="linux-virt" ;;
-    3) KERNEL_PKG="linux-stable" ;;
-    4) KERNEL_PKG="linux-openpax" ;;
-    *) KERNEL_PKG="linux-lts" ;;
-esac
-
 # Verify UEFI
 if [ ! -d /sys/firmware/efi ]; then
     echo -e "${CYAN}ERROR: This script requires UEFI boot mode${NC}"
@@ -84,8 +60,7 @@ echo -e "${CYAN}About to install to $TARGET_DISK with these settings:"
 echo "Hostname: $HOSTNAME"
 echo "Timezone: $TIMEZONE"
 echo "Keymap: $KEYMAP"
-echo "Username: $USER_NAME"
-echo "Kernel: $KERNEL_PKG${NC}"
+echo "Username: $USER_NAME${NC}"
 echo -ne "${CYAN}Continue? (y/n): ${NC}"
 read confirm
 if [ "$confirm" != "y" ]; then
@@ -93,9 +68,9 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
-# Install prerequisites (including parted)
+# Install prerequisites
 echo -e "${CYAN}Installing required packages...${NC}"
-cyan_output apk add btrfs-progs parted dosfstools grub-efi efibootmgr $KERNEL_PKG
+cyan_output apk add btrfs-progs parted dosfstools grub-efi efibootmgr
 cyan_output modprobe btrfs
 
 # Partitioning (GPT with EFI system partition)
@@ -156,11 +131,6 @@ cyan_output mount --rbind /sys /mnt/sys
 cat << CHROOT | tee /mnt/setup-chroot.sh >/dev/null
 #!/bin/ash
 
-# Enable main and community repositories in chroot
-echo -e "${CYAN}Enabling main and community repositories in chroot...${NC}"
-sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n/' /etc/apk/repositories
-apk update
-
 # System basics
 echo -e "${CYAN}Setting up users and basic configuration...${NC}"
 echo "root:$ROOT_PASSWORD" | chpasswd
@@ -183,10 +153,6 @@ ${TARGET_DISK}2 /var/log btrfs rw,noatime,compress=zstd:22,compress-force=zstd:2
 ${TARGET_DISK}2 /var/cache btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@cache 0 2
 EOF
 
-# Install selected kernel in chroot
-echo -e "${CYAN}Installing $KERNEL_PKG in chroot...${NC}"
-apk add $KERNEL_PKG
-
 # KDE Plasma
 echo -e "${CYAN}Installing KDE Plasma...${NC}"
 sed -i 's/^#.*@community/&/' /etc/apk/repositories
@@ -195,7 +161,7 @@ setup-desktop
 
 # Bootloader
 echo -e "${CYAN}Installing bootloader...${NC}"
-apk add grub-efi efibootmgr parted
+apk add grub-efi efibootmgr
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
 grub-mkconfig -o /boot/grub/grub.cfg
 
