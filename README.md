@@ -20,24 +20,29 @@
 
 bash script to install alpine as btrfs with any desktop
 
-
-
-
-
 install git and then in konsole 
 
-simply type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute
+simply type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute one of the scripts
+
+Steps pretty straight forward
+setup system credentials
+
+setup a desktop if need be
+
+chroot and or reboot
+
+
+feel free to fork or contribute 
 
 
 i will provide .img with this installer inside
 
+two scripts to use gui install dialog
+
+<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_18:09:33" src="https://github.com/user-attachments/assets/ba0192b6-d8f5-4ad1-8087-cc5c12193e19" />
+
+this is the simple bash script 
 
 
-<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_01:59:18" src="https://github.com/user-attachments/assets/ece6ea61-7a4b-40d9-b4c1-d93d040a30d9" />
-
-
-just going to make a clone with a new custom alpha cloner built for alpine 
-
-<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_02:41:39" src="https://github.com/user-attachments/assets/ba27567a-fc71-4f26-8233-dce510c8b61a" />
-
+<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_18:14:04" src="https://github.com/user-attachments/assets/1e6808e8-f383-4dc1-b450-c9178acf052d" />
 
