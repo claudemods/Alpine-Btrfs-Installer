@@ -154,21 +154,21 @@ ${TARGET_DISK}2 /var/cache btrfs rw,noatime,compress=zstd:22,compress-force=zstd
 EOF
 
 # KDE Plasma
-echo -e "${CYAN}Installing KDE Plasma...${NC}"
-apk update
-setup-desktop
+echo -e "${CYAN}Choose Your Desktop...${NC}"
+cyan_output apk update
+cyan_output setup-desktop
 
 # Bootloader
 echo -e "${CYAN}Installing bootloader...${NC}"
-apk add grub-efi efibootmgr
-grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
-grub-mkconfig -o /boot/grub/grub.cfg
+cyan_output apk add grub-efi efibootmgr
+cyan_output grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
+cyan_output grub-mkconfig -o /boot/grub/grub.cfg
 
 # Enable services
 echo -e "${CYAN}Enabling services...${NC}"
-rc-update add dbus
-rc-update add sddm
-rc-update add networkmanager
+cyan_output rc-update add dbus
+cyan_output rc-update add sddm
+cyan_output rc-update add networkmanager
 
 # Cleanup
 rm /setup-chroot.sh
@@ -181,7 +181,7 @@ cyan_output chroot /mnt /setup-chroot.sh
 
 # Finalize
 echo -e "${CYAN}Finalizing installation...${NC}"
-cyan_output umount -R /mnt
+cyan_output umount -l /mnt
 echo -e "${CYAN}Installation complete!${NC}"
 
 # Post-install options
