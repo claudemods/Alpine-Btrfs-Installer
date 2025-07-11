@@ -25,11 +25,12 @@ install git and then in konsole
 simply type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute one of the scripts
 
 Steps pretty straight forward
+
 setup system credentials
 
 setup a desktop if need be
 
-chroot and or reboot
+chroot and/or reboot
 
 
 feel free to fork or contribute 
