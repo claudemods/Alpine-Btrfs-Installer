@@ -3,47 +3,43 @@
 </p>
 
 <div align="center">
-
-<a href="https://www.alpinelinux.org/" target="_blank"><img src="https://img.shields.io/badge/DISTRO-Alpine-00FFFF?style=for-the-badge&logo=Alpine" /></a>
-
-
-
-
-
-
-# Alpine-Btrfs-Installer
+  <a href="https://www.alpinelinux.org/" target="_blank">
+    <img src="https://img.shields.io/badge/DISTRO-Alpine-00FFFF?style=for-the-badge&logo=Alpine">
+  </a>
+</div>
 
 <div align="center">
+  <h1>🏔️ Alpine-Btrfs-Installer</h1>
+
   <a href="https://www.deepseek.com/" target="_blank">
     <img alt="Homepage" src="https://i.postimg.cc/Hs2vbbZ8/Deep-Seek-Homepage.png" style="height: 30px; width: auto;">
   </a>
 
-bash script to install alpine as btrfs with any desktop
+  <p>bash script to install alpine as btrfs with any desktop</p>
 
-install git and then in konsole 
+  <div align="center">
+    <p>alpine btrfs subvolumes</p>
+    <p align="center">
+      <strong>@root @home @srv @cache @tmp @log @var/lib/portables @var/lib/machines</strong><br>
+    </p>
+  </div>
 
-simply type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute one of the scripts
+  <p>install git and then in konsole</p>
 
-Steps pretty straight forward
+  <pre>git clone https://github.com/claudemods/Alpine-Btrfs-Installer
+cd Alpine-Btrfs-Installer
+chmod +x *.sh
+./install.sh</pre>
 
-setup system credentials
+  <ul>
+    <li>Setup system credentials 🔐</li>
+    <li>Setup a desktop (if needed) 🖥️</li>
+    <li>chroot and/or reboot 🔄</li>
+  </ul>
 
-setup a desktop if need be
+  <p>feel free to fork or contribute</p>
 
-chroot and/or reboot
+  <p>i will provide .img with this installer inside</p>
 
-
-feel free to fork or contribute 
-
-
-i will provide .img with this installer inside
-
-here is a photos of the two scripts to use gui install dialog
-
-<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_18:09:33" src="https://github.com/user-attachments/assets/ba0192b6-d8f5-4ad1-8087-cc5c12193e19" />
-
-this is the simple bash script 
-
-
-<img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-11_18:14:04" src="https://github.com/user-attachments/assets/1e6808e8-f383-4dc1-b450-c9178acf052d" />
-
+  <h2><a href="https://github.com/claudemods/Alpine-Btrfs-Installer/tree/main/Photos">📸 Click Here For Photos</a></h2>
+</div>
