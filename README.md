@@ -8,9 +8,9 @@
 # Alpine-Btrfs-Installer
 bash script to install alpine as btrfs with any desktop
 
-
-bash -c "$(curl -fsSL https://github.com/claudemods/Alpine-Btrfs-Installer/blob/main/setup.sh)"
-
+install git and then in konsole simple type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute
+or use command ash -c "$(curl -fsSL https://github.com/claudemods/Alpine-Btrfs-Installer/blob/main/setup.sh)"
+i will provide .img with this installer inside
 
 
 
