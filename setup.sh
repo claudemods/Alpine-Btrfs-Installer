@@ -155,7 +155,6 @@ EOF
 
 # KDE Plasma
 echo -e "${CYAN}Installing KDE Plasma...${NC}"
-sed -i 's/^#.*@community/&/' /etc/apk/repositories
 apk update
 setup-desktop
 
