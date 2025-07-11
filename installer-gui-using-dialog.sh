@@ -211,7 +211,7 @@ configure_installation() {
 # Main menu
 main_menu() {
     while true; do
-        choice=$(dialog --clear --title "Alpine Linux Btrfs Installer Gui v1.0" \
+        choice=$(dialog --clear --title "Alpine Linux Btrfs Installer Gui v1.01" \
                        --menu "Select an option:" 15 45 5 \
                        1 "Configure Installation" \
                        2 "Start Installation" \
