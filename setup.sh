@@ -30,6 +30,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Enable world repositories
+echo -e "${CYAN}Enabling world repositories...${NC}"
+cyan_output sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n# World repos\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/main\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/community\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/testing/' /etc/apk/repositories
+cyan_output apk update
+
 # Ask for configuration
 echo -ne "${CYAN}Enter target disk (e.g. /dev/sda): ${NC}"
 read TARGET_DISK
@@ -87,7 +92,7 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
-# Install prerequisites
+# Install prerequisites (including parted)
 echo -e "${CYAN}Installing required packages...${NC}"
 cyan_output apk add btrfs-progs parted dosfstools grub-efi efibootmgr $KERNEL_PKG
 cyan_output modprobe btrfs
@@ -150,6 +155,11 @@ cyan_output mount --rbind /sys /mnt/sys
 cat << CHROOT | tee /mnt/setup-chroot.sh >/dev/null
 #!/bin/ash
 
+# Enable world repositories in chroot
+echo -e "${CYAN}Enabling world repositories in chroot...${NC}"
+sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n# World repos\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/main\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/community\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/testing/' /etc/apk/repositories
+apk update
+
 # System basics
 echo -e "${CYAN}Setting up users and basic configuration...${NC}"
 echo "root:$ROOT_PASSWORD" | chpasswd
@@ -184,7 +194,7 @@ setup-desktop
 
 # Bootloader
 echo -e "${CYAN}Installing bootloader...${NC}"
-apk add grub-efi efibootmgr
+apk add grub-efi efibootmgr parted
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
 grub-mkconfig -o /boot/grub/grub.cfg
 
@@ -233,7 +243,7 @@ while true; do
             echo -e "${CYAN}Entering chroot. Type 'exit' when done.${NC}"
             chroot /mnt /bin/ash
             echo -e "${CYAN}Exiting chroot...${NC}"
-            umount -R /mnt
+            umount -L /mnt
             ;;
         3)
             echo -e "${CYAN}Exiting. You can reboot manually when ready.${NC}"
