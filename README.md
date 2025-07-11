@@ -2,16 +2,26 @@
   <img src="https://i.postimg.cc/d1VR617H/alpine.webp">
 </p>
 
+
+<a href="https://www.alpinelinux.org/" target="_blank"><img src="https://img.shields.io/badge/DISTRO-Alpine-00FFFF?style=for-the-badge&logo=Alpine" /></a>
+
+
+
+
+
+
+# Alpine-Btrfs-Installer
+
 <div align="center">
   <a href="https://www.deepseek.com/" target="_blank">
     <img alt="Homepage" src="https://i.postimg.cc/Hs2vbbZ8/Deep-Seek-Homepage.png" style="height: 30px; width: auto;">
   </a>
 
-<a href="https://www.alpinelinux.org/" target="_blank"><img src="https://img.shields.io/badge/DISTRO-Alpine-00FFFF?style=for-the-badge&logo=Alpine" /></a>
-
-
-# Alpine-Btrfs-Installer
 bash script to install alpine as btrfs with any desktop
+
+
+
+
 
 install git and then in konsole simple type git clone http://github.com/claudemods/Alpine-Btrfs-installer cd chmod .. execute
 
