@@ -21,7 +21,7 @@ show_ascii() {
 ██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗
 ╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░${NC}"
-    echo -e "${CYAN}claudemods Alpine Btrfs Installer v1.02 11-07-2025${NC}"
+    echo -e "${CYAN}claudemods Alpine Btrfs Installer v1.01 11-07-2025${NC}"
     echo
 }
 
@@ -169,7 +169,6 @@ rc-update add dbus
 rc-update add networkmanager
 
 if [ "$LOGIN_MANAGER" != "none" ]; then
-    # Ensure login manager is installed (setup-desktop should handle this)
     rc-update add $LOGIN_MANAGER
 fi
 
@@ -218,9 +217,8 @@ CHROOT
 
 # Dialog-based configuration
 configure_installation() {
-    # Disk selection
-    TARGET_DISK=$(lsblk -d -n -l -o NAME | grep -E '^[a-z]+$' | awk '{print "/dev/" $1}')
-    TARGET_DISK=$(dialog --title "Target Disk" --menu "Select target disk:" 15 40 4 $(echo $TARGET_DISK | awk '{print $1, " "}') 3>&1 1>&2 2>&3)
+    # Disk selection - USING YOUR ORIGINAL INPUT METHOD
+    TARGET_DISK=$(dialog --title "Target Disk" --inputbox "Enter target disk (e.g. /dev/sda):" 8 40 3>&1 1>&2 2>&3)
 
     # Hostname
     HOSTNAME=$(dialog --title "Hostname" --inputbox "Enter hostname:" 8 40 "alpine" 3>&1 1>&2 2>&3)
@@ -231,7 +229,7 @@ configure_installation() {
     # Keymap
     KEYMAP=$(dialog --title "Keymap" --inputbox "Enter keymap (e.g. us):" 8 40 "us" 3>&1 1>&2 2>&3)
 
-    # User configuration
+    # User configuration - WITH VISIBLE PASSWORD INPUT
     USER_NAME=$(dialog --title "Username" --inputbox "Enter username:" 8 40 "user" 3>&1 1>&2 2>&3)
     USER_PASSWORD=$(dialog --title "User Password" --insecure --passwordbox "Enter user password:" 8 40 3>&1 1>&2 2>&3)
     ROOT_PASSWORD=$(dialog --title "Root Password" --insecure --passwordbox "Enter root password:" 8 40 3>&1 1>&2 2>&3)
