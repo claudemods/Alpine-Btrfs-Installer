@@ -22,7 +22,7 @@
 </div>
 
 
-
+  <div align="center">
   <p>bash script to install alpine as btrfs with any desktop</p>
 
   <div align="center">
@@ -32,6 +32,7 @@
     </p>
   </div>
 
+<div align="center">
   <p>install git and then in konsole</p>
 
   <pre>git clone https://github.com/claudemods/Alpine-Btrfs-Installer
