@@ -160,9 +160,9 @@ setup-desktop
 
 # Bootloader
 echo -e "${CYAN}Installing bootloader...${NC}"
-cyan_output apk add grub-efi efibootmgr
-cyan_output grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
-cyan_output grub-mkconfig -o /boot/grub/grub.cfg
+apk add grub-efi efibootmgr
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE
+grub-mkconfig -o /boot/grub/grub.cfg
 
 # Enable services
 echo -e "${CYAN}Enabling services...${NC}"
