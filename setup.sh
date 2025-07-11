@@ -30,9 +30,9 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Enable world repositories
-echo -e "${CYAN}Enabling world repositories...${NC}"
-cyan_output sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n# World repos\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/main\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/community\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/testing/' /etc/apk/repositories
+# Enable main and community repositories
+echo -e "${CYAN}Enabling main and community repositories...${NC}"
+cyan_output sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n/' /etc/apk/repositories
 cyan_output apk update
 
 # Ask for configuration
@@ -53,21 +53,21 @@ echo -ne "${CYAN}Enter root password: ${NC}"
 read -s ROOT_PASSWORD
 echo
 
-# Kernel selection
+# Kernel selection (only from main and community repos)
 echo -e "${CYAN}"
 echo "Select kernel to install:"
-echo "1) linux-lts (Long Term Support)"
-echo "2) linux-virt (Virtualization optimized)"
-echo "3) linux-hardened (Security hardened)"
-echo "4) linux-vanilla (Standard kernel)"
+echo "1) linux-lts - Long-term support kernel, configured for a generous selection of hardware"
+echo "2) linux-virt - Long-term support kernel, configured for VM guests"
+echo "3) linux-stable - Stable kernel, configured for a generous selection of hardware (community)"
+echo "4) linux-openpax - Kernel with OpenPAX patches for memory safety (community)"
 echo -ne "Enter choice (1-4, default 1): ${NC}"
 read KERNEL_CHOICE
 
 case $KERNEL_CHOICE in
     1) KERNEL_PKG="linux-lts" ;;
     2) KERNEL_PKG="linux-virt" ;;
-    3) KERNEL_PKG="linux-hardened" ;;
-    4) KERNEL_PKG="linux-vanilla" ;;
+    3) KERNEL_PKG="linux-stable" ;;
+    4) KERNEL_PKG="linux-openpax" ;;
     *) KERNEL_PKG="linux-lts" ;;
 esac
 
@@ -155,9 +155,9 @@ cyan_output mount --rbind /sys /mnt/sys
 cat << CHROOT | tee /mnt/setup-chroot.sh >/dev/null
 #!/bin/ash
 
-# Enable world repositories in chroot
-echo -e "${CYAN}Enabling world repositories in chroot...${NC}"
-sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n# World repos\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/main\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/community\n\#http:\/\/dl-cdn.alpinelinux.org\/alpine\/edge\/testing/' /etc/apk/repositories
+# Enable main and community repositories in chroot
+echo -e "${CYAN}Enabling main and community repositories in chroot...${NC}"
+sed -i 's/^#.*\/v[0-9]\.[0-9]\/community/&\n/' /etc/apk/repositories
 apk update
 
 # System basics
@@ -243,7 +243,7 @@ while true; do
             echo -e "${CYAN}Entering chroot. Type 'exit' when done.${NC}"
             chroot /mnt /bin/ash
             echo -e "${CYAN}Exiting chroot...${NC}"
-            umount -L /mnt
+            umount -l /mnt
             ;;
         3)
             echo -e "${CYAN}Exiting. You can reboot manually when ready.${NC}"
