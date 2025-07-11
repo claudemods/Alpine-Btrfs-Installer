@@ -17,8 +17,8 @@
 
    <h2><a href="https://github.com/claudemods/Alpine-Btrfs-Installer/tree/main/Photos">📸 Click Here For Photos</a></h2>
 </div>
-
-   <h2><a href="https://github.com/claudemods/btrfssystemcloner">📸 Clone Your Alpine Btrfs System Today</a></h2>
+   <div align="center">
+   <h2><a href="https://github.com/claudemods/btrfssystemcloner">🖥️🔄 Clone Your Alpine Btrfs System Today</a></h2>
 </div>
 
 
