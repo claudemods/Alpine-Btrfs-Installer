@@ -26,7 +26,7 @@
 </div>
 
   <div align="center">
-  <p>bash script to install alpine as uefi btrfs zstd level 22 compression with any desktop </p>
+  <p>ash script to install alpine as uefi btrfs zstd level 22 compression with any desktop </p>
 
   <p>currently LTS kernel is only supported</p>
 
