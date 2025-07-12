@@ -162,13 +162,13 @@ public:
         // ASCII art title
         QLabel *titleLabel = new QLabel;
         titleLabel->setText(
-            "<span style='color:#ff0000;'>░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗<br>"
+            "<span style='font-size:6px; color:#ff0000;'>░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗<br>"
             "██╔══██╗██║░░░░░██╔══██╗██║░░░██║██╔══██╗██╔════╝████╗░████║██╔══██╗██╔══██╗██╔════╝<br>"
             "██║░░╚═╝██║░░░░░███████║██║░░░██║██║░░██║█████╗░░██╔████╔██║██║░░██║██║░░██║╚█████╗░<br>"
             "██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗<br>"
             "╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝<br>"
             "░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░</span><br>"
-            "<span style='color:#00ffff;'>Alpine Btrfs Installer v1.02 12-07-2025</span>"
+            "<span style='color:#00ffff;'>Alpine Btrfs Installer v1.0 12-07-2025</span>"
         );
         titleLabel->setAlignment(Qt::AlignCenter);
         mainLayout->addWidget(titleLabel);
@@ -473,8 +473,16 @@ private slots:
             return;
         }
 
+        // Ask for sudo password before proceeding
+        PasswordDialog passDialog(this);
+        passDialog.setWindowTitle("Enter Sudo Password");
+        if (passDialog.exec() != QDialog::Accepted) {
+            logMessage("Installation cancelled - no password provided.");
+            return;
+        }
+
         // Set sudo password for command runner
-        commandRunner->setSudoPassword(settings["rootPassword"]);
+        commandRunner->setSudoPassword(passDialog.password());
 
         // Start installation process
         logMessage("Starting Alpine Linux BTRFS installation...");
@@ -530,6 +538,8 @@ private slots:
                 emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@tmp"}, true);
                 emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@log"}, true);
                 emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@cache"}, true);
+                emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@/var/lib/portables"}, true);
+                emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@/var/lib/machines"}, true);
                 emit executeCommand("umount", {"/mnt"}, true);
                 break;
 
@@ -544,12 +554,16 @@ private slots:
                 emit executeCommand("mkdir", {"-p", "/mnt/tmp"}, true);
                 emit executeCommand("mkdir", {"-p", "/mnt/var/cache"}, true);
                 emit executeCommand("mkdir", {"-p", "/mnt/var/log"}, true);
+                emit executeCommand("mkdir", {"-p", "/mnt/var/lib/portables"}, true);
+                emit executeCommand("mkdir", {"-p", "/mnt/var/lib/machines"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@home,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/home"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@root,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/root"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@srv,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/srv"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@tmp,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/tmp"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@log,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/var/log"}, true);
                 emit executeCommand("mount", {"-o", QString("subvol=@cache,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/var/cache"}, true);
+                emit executeCommand("mount", {"-o", QString("subvol=@/var/lib/portables,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/var/lib/portables"}, true);
+                emit executeCommand("mount", {"-o", QString("subvol=@/var/lib/machines,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/var/lib/machines"}, true);
                 break;
 
             case 7: // Install base system
@@ -631,6 +645,8 @@ private slots:
             out << disk2 << " /tmp btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@tmp 0 2\n";
             out << disk2 << " /var/log btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@log 0 2\n";
             out << disk2 << " /var/cache btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@cache 0 2\n";
+            out << disk2 << " /var/lib/portables btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@/var/lib/portables 0 2\n";
+            out << disk2 << " /var/lib/machines btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@/var/lib/machines 0 2\n";
             out << "EOF\n\n";
 
             // Update repositories and install desktop environment
