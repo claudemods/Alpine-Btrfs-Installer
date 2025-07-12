@@ -70,7 +70,6 @@ private:
     QLineEdit *passwordEdit;
     QLineEdit *confirmEdit;
 };
-
 class CommandRunner : public QObject {
     Q_OBJECT
 public:
@@ -123,7 +122,7 @@ public slots:
     }
 
     void setSudoPassword(const QString &password) {
-        sudoPassword = password.replace("'", "'\\''"); // Escape single quotes for shell
+        sudoPassword = QString(password).replace("'", "'\\''"); // Make a copy first, then replace
     }
 
 private:
