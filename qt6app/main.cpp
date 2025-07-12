@@ -70,6 +70,7 @@ private:
     QLineEdit *passwordEdit;
     QLineEdit *confirmEdit;
 };
+
 class CommandRunner : public QObject {
     Q_OBJECT
 public:
@@ -85,23 +86,41 @@ public slots:
         QProcess process;
         process.setProcessChannelMode(QProcess::MergedChannels);
 
-        QString fullCommand = command;
-        if (!args.isEmpty()) {
-            fullCommand += " " + args.join(" ");
+        QString fullCommand;
+        if (asRoot) {
+            fullCommand = "doas " + command;
+            if (!args.isEmpty()) {
+                fullCommand += " " + args.join(" ");
+            }
+        } else {
+            fullCommand = command;
+            if (!args.isEmpty()) {
+                fullCommand += " " + args.join(" ");
+            }
         }
 
         emit commandStarted(fullCommand);
 
         if (asRoot) {
-            QStringList doasCommand;
-            doasCommand << "-c" << QString("echo '%1' | doas -n %2 %3").arg(sudoPassword).arg(command).arg(args.join(" "));
-            process.start("sh", doasCommand);
+            QStringList fullArgs;
+            fullArgs << command;
+            fullArgs += args;
+
+            process.start("doas", fullArgs);
+            if (!process.waitForStarted()) {
+                emit commandOutput("Failed to start doas command\n");
+                emit commandFinished(false);
+                return;
+            }
+
+            process.write((m_sudoPassword + "\n").toUtf8());
+            process.closeWriteChannel();
         } else {
             process.start(command, args);
         }
 
         if (!process.waitForStarted()) {
-            emit commandOutput("Failed to start command: " + command + "\n");
+            emit commandOutput("Failed to start command: " + fullCommand + "\n");
             emit commandFinished(false);
             return;
         }
@@ -122,11 +141,12 @@ public slots:
     }
 
     void setSudoPassword(const QString &password) {
-        sudoPassword = QString(password).replace("'", "'\\''"); // Make a copy first, then replace
+        m_sudoPassword = password;
+        m_sudoPassword.replace("'", "'\\''");
     }
 
 private:
-    QString sudoPassword;
+    QString m_sudoPassword;
 };
 
 class AlpineInstaller : public QMainWindow {
@@ -754,8 +774,8 @@ private slots:
         layout->addWidget(chrootButton);
         layout->addWidget(exitButton);
 
-        connect(rebootButton, &QPushButton::clicked, [&dialog]() {
-            QProcess::execute("reboot");
+        connect(rebootButton, &QPushButton::clicked, [this, &dialog]() {
+            QProcess::execute("reboot", QStringList());
             dialog.accept();
         });
 
@@ -823,7 +843,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
     // Check if running as root
-    if (QProcess::execute("whoami") != 0) {
+    if (QProcess::execute("whoami", QStringList()) != 0) {
         QMessageBox::critical(nullptr, "Error", "This application must be run as root!");
         return 1;
     }
