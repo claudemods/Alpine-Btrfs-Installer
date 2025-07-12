@@ -62,7 +62,7 @@ void show_ascii() {
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░
     )");
     attron(COLOR_PAIR(2));
-    printw("claudemods v1.01 11-07-2025\n\n");
+    printw("v1.01 11-07-2025\n\n");
     refresh();
 }
 
@@ -90,6 +90,85 @@ void show_message(const string& title, const string& message) {
     cbreak();
     getch();
     delwin(win);
+}
+
+bool get_confirmation(const string& title, const string& message) {
+    clear();
+    show_ascii();
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
+    
+    // Split message into lines
+    vector<string> lines;
+    size_t start = 0;
+    size_t end = message.find('\n');
+    while (end != string::npos) {
+        lines.push_back(message.substr(start, end - start));
+        start = end + 1;
+        end = message.find('\n', start);
+    }
+    lines.push_back(message.substr(start));
+    
+    // Calculate required width and height
+    int width = title.length() + 4;
+    for (const auto& line : lines) {
+        width = max(width, (int)line.length() + 4);
+    }
+    width = min(width, cols - 4);
+    
+    int height = lines.size() + 6;
+    height = min(height, rows - 2);
+    
+    int starty = (rows - height) / 2;
+    int startx = (cols - width) / 2;
+
+    WINDOW* win = newwin(height, width, starty, startx);
+    wbkgd(win, COLOR_PAIR(3));
+    keypad(win, TRUE);
+    wattron(win, COLOR_PAIR(3));
+    box(win, 0, 0);
+    mvwprintw(win, 0, (width-title.length())/2, "%s", title.c_str());
+    
+    // Print each line of the message
+    for (size_t i = 0; i < lines.size(); i++) {
+        mvwprintw(win, i+2, 2, "%s", lines[i].c_str());
+    }
+    
+    // Add Yes/No options
+    int highlight = 0; // 0 for Yes, 1 for No
+    while (true) {
+        if (highlight == 0) {
+            wattron(win, COLOR_PAIR(4) | A_BOLD);
+            mvwprintw(win, height-2, (width/2)-10, "[ Yes ]");
+            wattroff(win, COLOR_PAIR(4) | A_BOLD);
+            wattron(win, COLOR_PAIR(3));
+            mvwprintw(win, height-2, (width/2)+4, "[ No ]");
+        } else {
+            wattron(win, COLOR_PAIR(3));
+            mvwprintw(win, height-2, (width/2)-10, "[ Yes ]");
+            wattron(win, COLOR_PAIR(4) | A_BOLD);
+            mvwprintw(win, height-2, (width/2)+4, "[ No ]");
+            wattroff(win, COLOR_PAIR(4) | A_BOLD);
+        }
+        
+        wrefresh(win);
+        
+        int ch = wgetch(win);
+        switch (ch) {
+            case KEY_LEFT: highlight = 0; break;
+            case KEY_RIGHT: highlight = 1; break;
+            case 10: // Enter key
+                delwin(win);
+                return (highlight == 0);
+            case 'y': case 'Y':
+                delwin(win);
+                return true;
+            case 'n': case 'N':
+                delwin(win);
+                return false;
+            default: break;
+        }
+    }
 }
 
 string get_input(const string& title, const string& prompt, const string& default_val = "") {
@@ -220,10 +299,11 @@ void perform_installation() {
     << "Keymap: " << KEYMAP << "\n"
     << "Username: " << USER_NAME << "\n"
     << "Desktop: " << DESKTOP_ENV << "\n"
-    << "Continue? (y/n):";
+    << "\n"
+    << "WARNING: This will erase all data on " << TARGET_DISK << "!\n"
+    << "Are you sure you want to continue?";
 
-    string confirm = get_input("Confirmation", confirm_msg.str());
-    if (confirm != "y" && confirm != "Y") {
+    if (!get_confirmation("Confirmation", confirm_msg.str())) {
         show_message("Installation", "Installation cancelled.");
         return;
     }
@@ -397,4 +477,3 @@ int main() {
     endwin();
     return 0;
 }
-
