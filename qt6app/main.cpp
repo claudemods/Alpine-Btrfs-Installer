@@ -105,14 +105,14 @@ public slots:
             QStringList fullArgs;
             fullArgs << command;
             fullArgs += args;
-
+            
             process.start("doas", fullArgs);
             if (!process.waitForStarted()) {
                 emit commandOutput("Failed to start doas command\n");
                 emit commandFinished(false);
                 return;
             }
-
+            
             process.write((m_sudoPassword + "\n").toUtf8());
             process.closeWriteChannel();
         } else {
