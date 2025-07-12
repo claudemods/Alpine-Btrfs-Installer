@@ -21,7 +21,7 @@ show_ascii() {
 ██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗
 ╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░${NC}"
-    echo -e "${CYAN}claudemods Alpine Btrfs Installer v1.01 11-07-2025${NC}"
+    echo -e "${CYAN}claudemods Alpine Btrfs Installer v1.02 12-07-2025${NC}"
     echo
 }
 
@@ -47,7 +47,8 @@ perform_installation() {
     echo "Timezone: $TIMEZONE"
     echo "Keymap: $KEYMAP"
     echo "Username: $USER_NAME"
-    echo "Desktop: $DESKTOP_ENV${NC}"
+    echo "Desktop: $DESKTOP_ENV"
+    echo "Compression Level: $COMPRESSION_LEVEL${NC}"
     echo -ne "${CYAN}Continue? (y/n): ${NC}"
     read confirm
     if [ "$confirm" != "y" ]; then
@@ -76,7 +77,7 @@ perform_installation() {
     cyan_output btrfs subvolume create /mnt/@cache
     cyan_output umount /mnt
 
-    cyan_output mount -o subvol=@,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt
+    cyan_output mount -o subvol=@,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt
     cyan_output mkdir -p /mnt/boot/efi
     cyan_output mount "${TARGET_DISK}1" /mnt/boot/efi
     cyan_output mkdir -p /mnt/home
@@ -85,12 +86,12 @@ perform_installation() {
     cyan_output mkdir -p /mnt/tmp
     cyan_output mkdir -p /mnt/var/cache
     cyan_output mkdir -p /mnt/var/log
-    cyan_output mount -o subvol=@home,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/home
-    cyan_output mount -o subvol=@root,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/root
-    cyan_output mount -o subvol=@srv,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/srv
-    cyan_output mount -o subvol=@tmp,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/tmp
-    cyan_output mount -o subvol=@log,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/var/log
-    cyan_output mount -o subvol=@cache,compress=zstd:22,compress-force=zstd:22 "${TARGET_DISK}2" /mnt/var/cache
+    cyan_output mount -o subvol=@home,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/home
+    cyan_output mount -o subvol=@root,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/root
+    cyan_output mount -o subvol=@srv,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/srv
+    cyan_output mount -o subvol=@tmp,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/tmp
+    cyan_output mount -o subvol=@log,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/log
+    cyan_output mount -o subvol=@cache,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/cache
 
     cyan_output setup-disk -m sys /mnt
 
@@ -116,13 +117,13 @@ echo "$HOSTNAME" > /etc/hostname
 
 cat << EOF > /etc/fstab
 ${TARGET_DISK}1 /boot/efi vfat defaults 0 2
-${TARGET_DISK}2 / btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@ 0 1
-${TARGET_DISK}2 /home btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@home 0 2
-${TARGET_DISK}2 /root btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@root 0 2
-${TARGET_DISK}2 /srv btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@srv 0 2
-${TARGET_DISK}2 /tmp btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@tmp 0 2
-${TARGET_DISK}2 /var/log btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@log 0 2
-${TARGET_DISK}2 /var/cache btrfs rw,noatime,compress=zstd:22,compress-force=zstd:22,subvol=@cache 0 2
+${TARGET_DISK}2 / btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@ 0 1
+${TARGET_DISK}2 /home btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@home 0 2
+${TARGET_DISK}2 /root btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@root 0 2
+${TARGET_DISK}2 /srv btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@srv 0 2
+${TARGET_DISK}2 /tmp btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@tmp 0 2
+${TARGET_DISK}2 /var/log btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@log 0 2
+${TARGET_DISK}2 /var/cache btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@cache 0 2
 EOF
 
 apk update
@@ -132,6 +133,7 @@ case "$DESKTOP_ENV" in
     "XFCE") setup-desktop xfce ;;
     "MATE") setup-desktop mate ;;
     "LXQt") setup-desktop lxqt ;;
+    "None") echo "No desktop environment selected" ;;
 esac
 
 apk add grub-efi efibootmgr
@@ -186,12 +188,20 @@ configure_installation() {
     USER_NAME=$(dialog --title "Username" --inputbox "Enter username:" 8 40 3>&1 1>&2 2>&3)
     USER_PASSWORD=$(dialog --title "User Password" --passwordbox "Enter user password:" 8 40 3>&1 1>&2 2>&3)
     ROOT_PASSWORD=$(dialog --title "Root Password" --passwordbox "Enter root password:" 8 40 3>&1 1>&2 2>&3)
-    DESKTOP_ENV=$(dialog --title "Desktop Environment" --menu "Select desktop:" 15 40 5 \
+    DESKTOP_ENV=$(dialog --title "Desktop Environment" --menu "Select desktop:" 15 40 6 \
         "KDE Plasma" "KDE Plasma Desktop" \
         "GNOME" "GNOME Desktop" \
         "XFCE" "XFCE Desktop" \
         "MATE" "MATE Desktop" \
-        "LXQt" "LXQt Desktop" 3>&1 1>&2 2>&3)
+        "LXQt" "LXQt Desktop" \
+        "None" "No desktop environment" 3>&1 1>&2 2>&3)
+    COMPRESSION_LEVEL=$(dialog --title "Compression Level" --inputbox "Enter BTRFS compression level (1-22, default is 22):" 8 40 22 3>&1 1>&2 2>&3)
+    
+    # Validate compression level
+    if ! [[ "$COMPRESSION_LEVEL" =~ ^[0-9]+$ ]] || [ "$COMPRESSION_LEVEL" -lt 1 ] || [ "$COMPRESSION_LEVEL" -gt 22 ]; then
+        dialog --msgbox "Invalid compression level. Using default (22)." 6 40
+        COMPRESSION_LEVEL=22
+    fi
 }
 
 main_menu() {
