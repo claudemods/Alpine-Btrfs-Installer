@@ -50,20 +50,6 @@
   <p><em>All subvolumes use zstd compression at your selected level (default: 22)</em></p>
 </div>
 
-<div align="center">
-  <h2>🚀 Installation Guide</h2>
-  
-  <h3>Prerequisites</h3>
-  <p>Booted into Alpine Linux live environment with internet access</p>
-  
-  <h3>Quick Start</h3>
-  <pre>
-git clone https://github.com/claudemods/Alpine-Btrfs-Installer
-cd Alpine-Btrfs-Installer
-chmod +x *.sh
-./installer-gui-using-dialog.sh
-  </pre>
-
   <h3>Installation Steps</h3>
   <ol style="text-align: left; display: inline-block;">
     <li>1️⃣ Configure system settings (hostname, timezone, keymap)</li>
@@ -92,7 +78,19 @@ chmod +x *.sh
   </p>
 </div>
 
-
+<div align="center">
+  <h2>🚀 Installation Guide</h2>
+  
+  <h3>Prerequisites</h3>
+  <p>Booted into Alpine Linux live environment with internet access</p>
+  
+  <h3>Quick Start</h3>
+  <pre>
+git clone https://github.com/claudemods/Alpine-Btrfs-Installer
+cd Alpine-Btrfs-Installer
+chmod +x *.sh
+./installer-gui-using-dialog.sh
+  </pre>
 
 <div align="center">
   <h2>📦 Pre-built Image</h2>
