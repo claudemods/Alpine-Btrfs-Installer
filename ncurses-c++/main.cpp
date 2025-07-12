@@ -62,7 +62,7 @@ void show_ascii() {
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░
     )");
     attron(COLOR_PAIR(2));
-    printw("claudemods Alpine Btrfs Installer v1.01 11-07-2025\n\n");
+    printw("claudemods v1.01 11-07-2025\n\n");
     refresh();
 }
 
