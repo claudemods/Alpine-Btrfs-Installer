@@ -53,6 +53,6 @@ chmod +x *.sh
 
   <p>feel free to fork or contribute</p>
 
-  <p>260mb .img.xz with uefi btrfs installer inside download here https://drive.google.com/drive/folders/1BdjKB6pDIVhP-sAY5hXs1CyVxmaHnlw7</p>
+  <p>260mb .img.xz with uefi btrfs installer v1.01 inside download here https://drive.google.com/drive/folders/1BdjKB6pDIVhP-sAY5hXs1CyVxmaHnlw7</p>
 
  
