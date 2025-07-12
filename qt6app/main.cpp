@@ -80,45 +80,37 @@ signals:
     void commandStarted(const QString &command);
     void commandOutput(const QString &output);
     void commandFinished(bool success, const QString &command);
-    void passwordRequired();
 
 public slots:
     void runCommand(const QString &command, const QStringList &args = QStringList(), bool asRoot = false) {
+        QString fullCommand = command + (args.isEmpty() ? "" : " " + args.join(" "));
+        emit commandStarted(fullCommand);
+
         QProcess *process = new QProcess(this);
         process->setProcessChannelMode(QProcess::MergedChannels);
 
-        QString fullCommand = command;
-        if (!args.isEmpty()) {
-            fullCommand += " " + args.join(" ");
-        }
-
+        // Connect output signals
         connect(process, &QProcess::readyReadStandardOutput, [this, process]() {
-            emit commandOutput(QString::fromUtf8(process->readAllStandardOutput()));
+            emit commandOutput(process->readAllStandardOutput());
         });
 
+        connect(process, &QProcess::readyReadStandardError, [this, process]() {
+            emit commandOutput(process->readAllStandardError());
+        });
+
+        // Handle process completion
         connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                [this, process, fullCommand](int exitCode, QProcess::ExitStatus exitStatus) {
-            emit commandFinished(exitStatus == QProcess::NormalExit && exitCode == 0, fullCommand);
-            process->deleteLater();
-        });
-
-        emit commandStarted(fullCommand);
+            [this, process, fullCommand](int exitCode, QProcess::ExitStatus exitStatus) {
+                bool success = (exitStatus == QProcess::NormalExit && exitCode == 0);
+                emit commandFinished(success, fullCommand);
+                process->deleteLater();
+            });
 
         if (asRoot) {
-            QStringList doasArgs;
-            doasArgs << command;
-            doasArgs += args;
-            
-            process->start("doas", doasArgs);
-            
-            // Wait for password prompt if needed
-            if (process->waitForStarted() && 
-                process->waitForReadyRead() && 
-                process->readAllStandardOutput().contains("Password:")) {
-                process->write((m_sudoPassword + "\n").toUtf8());
-                process->closeWriteChannel();
-            }
+            // For privileged commands, use expect script to handle password
+            runWithDoas(process, command, args);
         } else {
+            // For normal commands
             process->start(command, args);
         }
     }
@@ -128,6 +120,36 @@ public slots:
     }
 
 private:
+    void runWithDoas(QProcess *process, const QString &command, const QStringList &args) {
+        // Create a temporary expect script
+        QTemporaryFile scriptFile;
+        if (!scriptFile.open()) {
+            emit commandOutput("Error: Failed to create temporary script\n");
+            emit commandFinished(false, "doas " + command);
+            return;
+        }
+
+        // Write the expect script
+        QTextStream out(&scriptFile);
+        out << "#!/usr/bin/expect -f\n";
+        out << "spawn doas " << command;
+        if (!args.isEmpty()) {
+            out << " " << args.join(" ");
+        }
+        out << "\n";
+        out << "expect \"Password:\"\n";
+        out << "send \"" << m_sudoPassword << "\\r\"\n";
+        out << "expect eof\n";
+        scriptFile.close();
+
+        // Make the script executable
+        QFile::setPermissions(scriptFile.fileName(), 
+            QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+
+        // Execute the expect script
+        process->start(scriptFile.fileName());
+    }
+
     QString m_sudoPassword;
 };
 
