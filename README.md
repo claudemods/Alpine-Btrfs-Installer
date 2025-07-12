@@ -78,6 +78,23 @@ chmod +x *.sh
 </div>
 
 <div align="center">
+  <h3>🗂️ Btrfs Subvolumes</h3>
+  <p align="center">
+    <strong>@ @root @home @srv @cache @tmp @log @var/lib/portables @var/lib/machines</strong><br>
+    <em>All with zstd compression at your chosen level (1-22)</em>
+  </p>
+</div>
+
+<div align="center">
+  <h3>🗂️ Dependencies</h3>
+  <p align="center">
+    <strong>btrfs-progs dosfstools dialog</strong><br>
+  </p>
+</div>
+
+
+
+<div align="center">
   <h2>📦 Pre-built Image</h2>
   <p>260MB minimal .img.xz with installer included</p>
   <p><a href="https://drive.google.com/drive/folders/1BdjKB6pDIVhP-sAY5hXs1CyVxmaHnlw7">Download Installer Image</a></p>
