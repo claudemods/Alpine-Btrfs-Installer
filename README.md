@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.postimg.cc/d1VR617H/alpine.webp" width="300">
+  <img src="https://i.postimg.cc/d1VR617H/alpine.webp">
 </p>
 
 <div align="center">
