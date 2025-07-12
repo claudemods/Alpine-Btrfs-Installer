@@ -2,7 +2,7 @@ looks nice but fails im working on it next before i use template for arch/cachyo
 
 temp guide for building 
 
-qt5 dependencies gcc g++ qt6-qttools
+qt5 dependencies gcc g++ 
 
 qmake && make
 
