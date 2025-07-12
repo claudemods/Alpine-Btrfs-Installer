@@ -9,7 +9,7 @@
 </div>
 
 <div align="center">
-  <h1>🏔️ Alpine-Btrfs-Installer</h1>
+  <h1> Alpine-Btrfs-Installer</h1>
   <h3>v1.02 - UEFI Btrfs Installer with Multiple Init Systems</h3>
 </div>
 
