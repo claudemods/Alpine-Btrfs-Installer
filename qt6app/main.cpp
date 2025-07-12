@@ -94,11 +94,9 @@ public slots:
         emit commandStarted(fullCommand);
 
         if (asRoot) {
-            QStringList sudoArgs;
-            sudoArgs << "-S" << command << args;
-            process.start("sudo", sudoArgs);
-            process.write((sudoPassword + "\n").toUtf8());
-            process.closeWriteChannel();
+            QStringList doasCommand;
+            doasCommand << "-c" << QString("echo '%1' | doas -n %2 %3").arg(sudoPassword).arg(command).arg(args.join(" "));
+            process.start("sh", doasCommand);
         } else {
             process.start(command, args);
         }
@@ -125,7 +123,7 @@ public slots:
     }
 
     void setSudoPassword(const QString &password) {
-        sudoPassword = password;
+        sudoPassword = password.replace("'", "'\\''"); // Escape single quotes for shell
     }
 
 private:
@@ -475,7 +473,7 @@ private slots:
 
         // Ask for sudo password before proceeding
         PasswordDialog passDialog(this);
-        passDialog.setWindowTitle("Enter Sudo Password");
+        passDialog.setWindowTitle("Enter doas Password");
         if (passDialog.exec() != QDialog::Accepted) {
             logMessage("Installation cancelled - no password provided.");
             return;
