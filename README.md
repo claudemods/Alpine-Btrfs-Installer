@@ -26,7 +26,7 @@
 </div>
 
   <div align="center">
-  <p>ash script to install alpine as uefi btrfs zstd level 22 compression with any desktop </p>
+  <p>ash script is for openrc currently on alpine using uefi btrfs zstd level 22 compression with the option for any desktop or none </p>
 
   <p>currently LTS kernel is only supported</p>
 
