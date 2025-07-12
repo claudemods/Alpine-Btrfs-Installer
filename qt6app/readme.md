@@ -6,7 +6,7 @@ qt5 dependencies gcc g++
 
 qmake && make
 
-looks like it works people !
+fails will use my old qt6 arch appimage template for passing sudo and update
 
 
 <img width="1280" height="800" alt="Screenshot_archlinux-clone_2025-07-12_20:18:26" src="https://github.com/user-attachments/assets/03c76679-5902-4cbd-bdc7-17fceae94310" />
