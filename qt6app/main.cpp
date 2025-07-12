@@ -89,16 +89,14 @@ public slots:
         QProcess *process = new QProcess(this);
         process->setProcessChannelMode(QProcess::MergedChannels);
 
-        // Connect output signals
         connect(process, &QProcess::readyReadStandardOutput, [this, process]() {
-            emit commandOutput(process->readAllStandardOutput());
+            emit commandOutput(QString::fromLocal8Bit(process->readAllStandardOutput()));
         });
 
         connect(process, &QProcess::readyReadStandardError, [this, process]() {
-            emit commandOutput(process->readAllStandardError());
+            emit commandOutput(QString::fromLocal8Bit(process->readAllStandardError()));
         });
 
-        // Handle process completion
         connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             [this, process, fullCommand](int exitCode, QProcess::ExitStatus exitStatus) {
                 bool success = (exitStatus == QProcess::NormalExit && exitCode == 0);
@@ -107,11 +105,18 @@ public slots:
             });
 
         if (asRoot) {
-            // For privileged commands, use expect script to handle password
-            runWithDoas(process, command, args);
+            QStringList doasArgs;
+            doasArgs << command;
+            doasArgs += args;
+            process->start("doas", doasArgs);
         } else {
-            // For normal commands
             process->start(command, args);
+        }
+
+        if (!process->waitForStarted()) {
+            emit commandOutput("Failed to start command: " + command + "\n");
+            emit commandFinished(false, fullCommand);
+            process->deleteLater();
         }
     }
 
@@ -120,36 +125,6 @@ public slots:
     }
 
 private:
-    void runWithDoas(QProcess *process, const QString &command, const QStringList &args) {
-        // Create a temporary expect script
-        QTemporaryFile scriptFile;
-        if (!scriptFile.open()) {
-            emit commandOutput("Error: Failed to create temporary script\n");
-            emit commandFinished(false, "doas " + command);
-            return;
-        }
-
-        // Write the expect script
-        QTextStream out(&scriptFile);
-        out << "#!/usr/bin/expect -f\n";
-        out << "spawn doas " << command;
-        if (!args.isEmpty()) {
-            out << " " << args.join(" ");
-        }
-        out << "\n";
-        out << "expect \"Password:\"\n";
-        out << "send \"" << m_sudoPassword << "\\r\"\n";
-        out << "expect eof\n";
-        scriptFile.close();
-
-        // Make the script executable
-        QFile::setPermissions(scriptFile.fileName(), 
-            QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
-
-        // Execute the expect script
-        process->start(scriptFile.fileName());
-    }
-
     QString m_sudoPassword;
 };
 
@@ -158,7 +133,6 @@ class AlpineInstaller : public QMainWindow {
 
 public:
     AlpineInstaller(QWidget *parent = nullptr) : QMainWindow(parent) {
-        // Set dark theme
         qApp->setStyle(QStyleFactory::create("Fusion"));
         QPalette darkPalette;
         darkPalette.setColor(QPalette::Window, QColor(53,53,53));
@@ -176,11 +150,9 @@ public:
         darkPalette.setColor(QPalette::HighlightedText, Qt::black);
         qApp->setPalette(darkPalette);
 
-        // Create main widgets
         QWidget *centralWidget = new QWidget;
         QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
-        // ASCII art title
         QLabel *titleLabel = new QLabel;
         titleLabel->setText(
             "<span style='font-size:6px; color:#ff0000;'>░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗<br>"
@@ -194,13 +166,11 @@ public:
         titleLabel->setAlignment(Qt::AlignCenter);
         mainLayout->addWidget(titleLabel);
 
-        // Progress bar with log button
         QHBoxLayout *progressLayout = new QHBoxLayout;
         progressBar = new QProgressBar;
         progressBar->setRange(0, 100);
         progressBar->setTextVisible(true);
 
-        // Customize progress bar with cyan gradient
         QString progressStyle =
         "QProgressBar {"
         "    border: 2px solid grey;"
@@ -222,7 +192,6 @@ public:
         progressLayout->addWidget(logButton);
         mainLayout->addLayout(progressLayout);
 
-        // Log area
         logArea = new QTextEdit;
         logArea->setReadOnly(true);
         logArea->setFont(QFont("Monospace", 10));
@@ -230,7 +199,6 @@ public:
         logArea->setVisible(false);
         mainLayout->addWidget(logArea);
 
-        // Buttons
         QHBoxLayout *buttonLayout = new QHBoxLayout;
         QPushButton *configButton = new QPushButton("Configure Installation");
         QPushButton *mirrorButton = new QPushButton("Find Fastest Mirrors");
@@ -252,10 +220,8 @@ public:
         setWindowTitle("Alpine Linux BTRFS Installer");
         resize(800, 600);
 
-        // Initialize empty settings
         initSettings();
 
-        // Setup command runner thread
         commandThread = new QThread;
         commandRunner = new CommandRunner;
         commandRunner->moveToThread(commandThread);
@@ -289,34 +255,28 @@ private slots:
 
         QFormLayout *form = new QFormLayout(&dialog);
 
-        // Disk selection
         QLineEdit *diskEdit = new QLineEdit(settings["targetDisk"]);
         diskEdit->setPlaceholderText("e.g. /dev/sda");
         form->addRow("Target Disk:", diskEdit);
 
-        // Hostname
         QLineEdit *hostnameEdit = new QLineEdit(settings["hostname"]);
         hostnameEdit->setPlaceholderText("e.g. alpine");
         form->addRow("Hostname:", hostnameEdit);
 
-        // Timezone
         QLineEdit *timezoneEdit = new QLineEdit(settings["timezone"]);
         timezoneEdit->setPlaceholderText("e.g. UTC");
         form->addRow("Timezone:", timezoneEdit);
 
-        // Keymap
         QLineEdit *keymapEdit = new QLineEdit(settings["keymap"]);
         keymapEdit->setPlaceholderText("e.g. us");
         form->addRow("Keymap:", keymapEdit);
 
-        // Username
         QLineEdit *userEdit = new QLineEdit(settings["username"]);
         userEdit->setPlaceholderText("e.g. user");
         form->addRow("Username:", userEdit);
 
-        // Desktop environment
         QComboBox *desktopCombo = new QComboBox;
-        desktopCombo->addItem("", ""); // Empty default
+        desktopCombo->addItem("", "");
         desktopCombo->addItem("KDE Plasma", "KDE Plasma");
         desktopCombo->addItem("GNOME", "GNOME");
         desktopCombo->addItem("XFCE", "XFCE");
@@ -328,9 +288,8 @@ private slots:
         }
         form->addRow("Desktop Environment:", desktopCombo);
 
-        // Bootloader
         QComboBox *bootloaderCombo = new QComboBox;
-        bootloaderCombo->addItem("", ""); // Empty default
+        bootloaderCombo->addItem("", "");
         bootloaderCombo->addItem("GRUB", "GRUB");
         bootloaderCombo->addItem("rEFInd", "rEFInd");
         if (!settings["bootloader"].isEmpty()) {
@@ -338,9 +297,8 @@ private slots:
         }
         form->addRow("Bootloader:", bootloaderCombo);
 
-        // Init system
         QComboBox *initCombo = new QComboBox;
-        initCombo->addItem("", ""); // Empty default
+        initCombo->addItem("", "");
         initCombo->addItem("OpenRC", "OpenRC");
         initCombo->addItem("sysvinit", "sysvinit");
         initCombo->addItem("runit", "runit");
@@ -350,7 +308,6 @@ private slots:
         }
         form->addRow("Init System:", initCombo);
 
-        // Compression level
         QSpinBox *compressionSpin = new QSpinBox;
         compressionSpin->setRange(1, 22);
         if (!settings["compressionLevel"].isEmpty()) {
@@ -361,7 +318,6 @@ private slots:
         }
         form->addRow("BTRFS Compression Level:", compressionSpin);
 
-        // Password buttons
         QPushButton *rootPassButton = new QPushButton(settings["rootPassword"].isEmpty() ? "Set Root Password" : "Change Root Password");
         QPushButton *userPassButton = new QPushButton(settings["userPassword"].isEmpty() ? "Set User Password" : "Change User Password");
         form->addRow(rootPassButton);
@@ -424,10 +380,7 @@ private slots:
             logMessage("Finding fastest mirrors...");
             progressBar->setValue(10);
 
-            // Install reflector if not present
             emit executeCommand("apk", {"add", "reflector"}, true);
-
-            // Find and update mirrors
             emit executeCommand("reflector", {"--latest", "20", "--protocol", "https", "--sort", "rate", "--save", "/etc/apk/repositories"}, true);
 
             progressBar->setValue(100);
@@ -440,7 +393,6 @@ private slots:
     }
 
     void startInstallation() {
-        // Validate all required settings
         QStringList missingFields;
         if (settings["targetDisk"].isEmpty()) missingFields << "Target Disk";
         if (settings["hostname"].isEmpty()) missingFields << "Hostname";
@@ -461,7 +413,6 @@ private slots:
             return;
         }
 
-        // Show confirmation dialog
         QString confirmationText = QString(
             "About to install to %1 with these settings:\n"
             "Hostname: %2\n"
@@ -494,7 +445,6 @@ private slots:
             return;
         }
 
-        // Ask for sudo password before proceeding
         PasswordDialog passDialog(this);
         passDialog.setWindowTitle("Enter doas Password");
         if (passDialog.exec() != QDialog::Accepted) {
@@ -502,16 +452,13 @@ private slots:
             return;
         }
 
-        // Set sudo password for command runner
         commandRunner->setSudoPassword(passDialog.password());
 
-        // Start installation process
         logMessage("Starting Alpine Linux BTRFS installation...");
         progressBar->setValue(5);
 
-        // Begin installation steps
         currentStep = 0;
-        totalSteps = 15; // Total number of installation steps
+        totalSteps = 15;
         nextInstallationStep();
     }
 
@@ -525,17 +472,17 @@ private slots:
         QString compression = "zstd:" + settings["compressionLevel"];
 
         switch (currentStep) {
-            case 1: // Install required tools
+            case 1:
                 logMessage("Installing required tools...");
                 emit executeCommand("apk", {"add", "btrfs-progs", "parted", "dosfstools", "efibootmgr"}, true);
                 break;
 
-            case 2: // Load btrfs module
+            case 2:
                 logMessage("Loading BTRFS module...");
                 emit executeCommand("modprobe", {"btrfs"}, true);
                 break;
 
-            case 3: // Partitioning
+            case 3:
                 logMessage("Partitioning disk...");
                 emit executeCommand("parted", {"-s", settings["targetDisk"], "mklabel", "gpt"}, true);
                 emit executeCommand("parted", {"-s", settings["targetDisk"], "mkpart", "primary", "1MiB", "513MiB"}, true);
@@ -543,13 +490,13 @@ private slots:
                 emit executeCommand("parted", {"-s", settings["targetDisk"], "mkpart", "primary", "513MiB", "100%"}, true);
                 break;
 
-            case 4: // Formatting
+            case 4:
                 logMessage("Formatting partitions...");
                 emit executeCommand("mkfs.vfat", {"-F32", disk1}, true);
                 emit executeCommand("mkfs.btrfs", {"-f", disk2}, true);
                 break;
 
-            case 5: // Mounting and subvolumes
+            case 5:
                 logMessage("Creating BTRFS subvolumes...");
                 emit executeCommand("mount", {disk2, "/mnt"}, true);
                 emit executeCommand("btrfs", {"subvolume", "create", "/mnt/@"}, true);
@@ -564,7 +511,7 @@ private slots:
                 emit executeCommand("umount", {"/mnt"}, true);
                 break;
 
-            case 6: // Remount with compression
+            case 6:
                 logMessage("Remounting with compression...");
                 emit executeCommand("mount", {"-o", QString("subvol=@,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt"}, true);
                 emit executeCommand("mkdir", {"-p", "/mnt/boot/efi"}, true);
@@ -587,35 +534,35 @@ private slots:
                 emit executeCommand("mount", {"-o", QString("subvol=@/var/lib/machines,compress=%1,compress-force=%1").arg(compression), disk2, "/mnt/var/lib/machines"}, true);
                 break;
 
-            case 7: // Install base system
+            case 7:
                 logMessage("Installing base system...");
                 emit executeCommand("setup-disk", {"-m", "sys", "/mnt"}, true);
                 break;
 
-            case 8: // Mount required filesystems for chroot
+            case 8:
                 logMessage("Preparing chroot environment...");
                 emit executeCommand("mount", {"-t", "proc", "none", "/mnt/proc"}, true);
                 emit executeCommand("mount", {"--rbind", "/dev", "/mnt/dev"}, true);
                 emit executeCommand("mount", {"--rbind", "/sys", "/mnt/sys"}, true);
                 break;
 
-            case 9: // Create chroot setup script
+            case 9:
                 logMessage("Preparing chroot setup script...");
                 createChrootScript();
                 emit executeCommand("chmod", {"+x", "/mnt/setup-chroot.sh"}, true);
                 break;
 
-            case 10: // Run chroot setup
+            case 10:
                 logMessage("Running chroot setup...");
                 emit executeCommand("chroot", {"/mnt", "/setup-chroot.sh"}, true);
                 break;
 
-            case 11: // Clean up
+            case 11:
                 logMessage("Cleaning up...");
                 emit executeCommand("umount", {"-R", "/mnt"}, true);
                 break;
 
-            case 12: // Installation complete
+            case 12:
                 logMessage("Installation complete!");
                 progressBar->setValue(100);
                 showPostInstallOptions();
@@ -634,7 +581,6 @@ private slots:
             return;
         }
 
-        // Proceed to next step
         QTimer::singleShot(500, this, &AlpineInstaller::nextInstallationStep);
     }
 
@@ -652,7 +598,6 @@ private slots:
             out << "setup-keymap " << settings["keymap"] << " " << settings["keymap"] << "\n";
             out << "echo \"" << settings["hostname"] << "\" > /etc/hostname\n\n";
 
-            // Generate fstab
             QString disk1 = settings["targetDisk"] + "1";
             QString disk2 = settings["targetDisk"] + "2";
             QString compression = "zstd:" + settings["compressionLevel"];
@@ -670,7 +615,6 @@ private slots:
             out << disk2 << " /var/lib/machines btrfs rw,noatime,compress=" << compression << ",compress-force=" << compression << ",subvol=@/var/lib/machines 0 2\n";
             out << "EOF\n\n";
 
-            // Update repositories and install desktop environment
             out << "apk update\n";
 
             QString loginManager = "none";
@@ -699,7 +643,6 @@ private slots:
                 out << "apk add networkmanager\n";
             }
 
-            // Install bootloader
             if (settings["bootloader"] == "GRUB") {
                 out << "apk add grub-efi\n";
                 out << "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE\n";
@@ -709,7 +652,6 @@ private slots:
                 out << "refind-install\n";
             }
 
-            // Configure init system
             if (settings["initSystem"] == "OpenRC") {
                 out << "rc-update add dbus\n";
                 out << "rc-update add networkmanager\n";
@@ -752,12 +694,10 @@ private slots:
                 out << "chmod +x /etc/s6/sv/dbus/run\n";
             }
 
-            // Clean up
             out << "rm /setup-chroot.sh\n";
 
             tempFile.close();
 
-            // Copy the temporary file to /mnt/setup-chroot.sh
             QProcess::execute("cp", {tempFile.fileName(), "/mnt/setup-chroot.sh"});
         }
     }
@@ -846,7 +786,6 @@ private:
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
-    // Check if running as root
     if (QProcess::execute("whoami", QStringList()) != 0) {
         QMessageBox::critical(nullptr, "Error", "This application must be run as root!");
         return 1;
