@@ -21,7 +21,7 @@ show_ascii() {
 ██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗
 ╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░${NC}"
-    echo -e "${CYAN}Alpine Btrfs Installer v1.03 12-07-2025${NC}"
+    echo -e "${CYAN}Alpine Btrfs Installer v1.02 12-07-2025${NC}"
     echo
 }
 
@@ -29,14 +29,15 @@ cyan_output() {
     "$@" | while IFS= read -r line; do echo -e "${CYAN}$line${NC}"; done
 }
 
-# Function to get partition suffix based on disk type
-get_partition_suffix() {
-    local disk=$1
-    case $disk in
-        /dev/nvme*) echo "p" ;;
-        /dev/mmcblk*) echo "p" ;;
-        *) echo "" ;;
-    esac
+# Added NVMe/MMC support - ONLY CHANGE MADE
+get_part() {
+    disk=$1
+    part=$2
+    if echo "$disk" | grep -q -E 'nvme|mmcblk'; then
+        echo "${disk}p${part}"
+    else
+        echo "${disk}${part}"
+    fi
 }
 
 configure_fastest_mirrors() {
@@ -72,11 +73,6 @@ perform_installation() {
         exit 1
     fi
 
-    # Get partition suffix based on disk type
-    PARTSUFFIX=$(get_partition_suffix "$TARGET_DISK")
-    EFI_PART="${TARGET_DISK}${PARTSUFFIX}1"
-    ROOT_PART="${TARGET_DISK}${PARTSUFFIX}2"
-
     echo -e "${CYAN}About to install to $TARGET_DISK with these settings:"
     echo "Hostname: $HOSTNAME"
     echo "Timezone: $TIMEZONE"
@@ -85,15 +81,17 @@ perform_installation() {
     echo "Desktop: $DESKTOP_ENV"
     echo "Bootloader: $BOOTLOADER"
     echo "Init System: $INIT_SYSTEM"
-    echo "Compression Level: $COMPRESSION_LEVEL"
-    echo "EFI Partition: $EFI_PART"
-    echo "Root Partition: $ROOT_PART${NC}"
+    echo "Compression Level: $COMPRESSION_LEVEL${NC}"
     echo -ne "${CYAN}Continue? (y/n): ${NC}"
     read confirm
     if [ "$confirm" != "y" ]; then
         echo -e "${CYAN}Installation cancelled.${NC}"
         exit 1
     fi
+
+    # Get partition names
+    BOOT_PART=$(get_part "$TARGET_DISK" 1)
+    ROOT_PART=$(get_part "$TARGET_DISK" 2)
 
     # Install required tools
     cyan_output apk add btrfs-progs parted dosfstools efibootmgr
@@ -106,7 +104,7 @@ perform_installation() {
     cyan_output parted -s "$TARGET_DISK" mkpart primary 513MiB 100%
 
     # Formatting
-    cyan_output mkfs.vfat -F32 "$EFI_PART"
+    cyan_output mkfs.vfat -F32 "$BOOT_PART"
     cyan_output mkfs.btrfs -f "$ROOT_PART"
 
     # Mounting and subvolumes
@@ -123,7 +121,7 @@ perform_installation() {
     # Remount with compression
     cyan_output mount -o subvol=@,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt
     cyan_output mkdir -p /mnt/boot/efi
-    cyan_output mount "$EFI_PART" /mnt/boot/efi
+    cyan_output mount "$BOOT_PART" /mnt/boot/efi
     cyan_output mkdir -p /mnt/home
     cyan_output mkdir -p /mnt/root
     cyan_output mkdir -p /mnt/srv
@@ -167,7 +165,7 @@ echo "$HOSTNAME" > /etc/hostname
 
 # Generate fstab
 cat << EOF > /etc/fstab
-$EFI_PART /boot/efi vfat defaults 0 2
+$BOOT_PART /boot/efi vfat defaults 0 2
 $ROOT_PART / btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@ 0 1
 $ROOT_PART /home btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@home 0 2
 $ROOT_PART /root btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@root 0 2
@@ -292,7 +290,7 @@ CHROOT
             2)
                 clear
                 echo -e "${CYAN}Entering chroot...${NC}"
-                mount "$EFI_PART" /mnt/boot/efi
+                mount "$BOOT_PART" /mnt/boot/efi
                 mount -o subvol=@ "$ROOT_PART" /mnt
                 mount -t proc none /mnt/proc
                 mount --rbind /dev /mnt/dev
@@ -313,17 +311,7 @@ CHROOT
 }
 
 configure_installation() {
-    # List available disks
-    DISKS=$(lsblk -d -n -l -o NAME,SIZE,TYPE | grep -E 'disk|nvme' | awk '{print "/dev/" $1 " (" $2 ")"}')
-    
-    # Create dialog menu options
-    DISK_OPTIONS=()
-    IFS=$'\n'
-    for disk in $DISKS; do
-        DISK_OPTIONS+=("$disk" "")
-    done
-    
-    TARGET_DISK=$(dialog --title "Target Disk" --menu "Select target disk:" 15 45 5 "${DISK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
+    TARGET_DISK=$(dialog --title "Target Disk" --inputbox "Enter target disk (e.g. /dev/sda, /dev/nvme0n1, /dev/mmcblk0):" 8 50 3>&1 1>&2 2>&3)
     HOSTNAME=$(dialog --title "Hostname" --inputbox "Enter hostname:" 8 40 3>&1 1>&2 2>&3)
     TIMEZONE=$(dialog --title "Timezone" --inputbox "Enter timezone (e.g. UTC):" 8 40 3>&1 1>&2 2>&3)
     KEYMAP=$(dialog --title "Keymap" --inputbox "Enter keymap (e.g. us):" 8 40 3>&1 1>&2 2>&3)
@@ -363,7 +351,7 @@ configure_installation() {
 
 main_menu() {
     while true; do
-        choice=$(dialog --clear --title "Alpine Btrfs Installer v1.03 12-07-2025" \
+        choice=$(dialog --clear --title "Alpine Btrfs Installer v1.02 12-07-2025" \
                        --menu "Select option:" 15 45 6 \
                        1 "Configure Installation" \
                        2 "Find Fastest Mirrors" \
