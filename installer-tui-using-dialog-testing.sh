@@ -13,21 +13,6 @@ RED='\033[38;2;255;0;0m'
 CYAN='\033[38;2;0;255;255m'
 NC='\033[0m'
 
-# Function to get proper partition naming for ALL drive types
-get_partition() {
-    local disk=$1
-    local part_num=$2
-    
-    case $disk in
-        /dev/nvme*|/dev/mmc*)
-            echo "${disk}p${part_num}"  # NVMe/MMC: nvme0n1p1, mmcblk0p1
-            ;;
-        *)
-            echo "${disk}${part_num}"   # Standard: sda1, vda1, hda1
-            ;;
-    esac
-}
-
 show_ascii() {
     clear
     echo -e "${RED}░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗
@@ -42,6 +27,16 @@ show_ascii() {
 
 cyan_output() {
     "$@" | while IFS= read -r line; do echo -e "${CYAN}$line${NC}"; done
+}
+
+# Function to get partition suffix based on disk type
+get_partition_suffix() {
+    local disk=$1
+    case $disk in
+        /dev/nvme*) echo "p" ;;
+        /dev/mmcblk*) echo "p" ;;
+        *) echo "" ;;
+    esac
 }
 
 configure_fastest_mirrors() {
@@ -77,9 +72,10 @@ perform_installation() {
         exit 1
     fi
 
-    # Get proper partition names for all drive types
-    EFI_PART=$(get_partition "$TARGET_DISK" 1)
-    ROOT_PART=$(get_partition "$TARGET_DISK" 2)
+    # Get partition suffix based on disk type
+    PARTSUFFIX=$(get_partition_suffix "$TARGET_DISK")
+    EFI_PART="${TARGET_DISK}${PARTSUFFIX}1"
+    ROOT_PART="${TARGET_DISK}${PARTSUFFIX}2"
 
     echo -e "${CYAN}About to install to $TARGET_DISK with these settings:"
     echo "Hostname: $HOSTNAME"
@@ -122,8 +118,6 @@ perform_installation() {
     cyan_output btrfs subvolume create /mnt/@tmp
     cyan_output btrfs subvolume create /mnt/@log
     cyan_output btrfs subvolume create /mnt/@cache
-    cyan_output btrfs subvolume create /mnt/@/var/lib/portables
-    cyan_output btrfs subvolume create /mnt/@/var/lib/machines
     cyan_output umount /mnt
 
     # Remount with compression
@@ -136,16 +130,12 @@ perform_installation() {
     cyan_output mkdir -p /mnt/tmp
     cyan_output mkdir -p /mnt/var/cache
     cyan_output mkdir -p /mnt/var/log
-    cyan_output mkdir -p /mnt/var/lib/portables
-    cyan_output mkdir -p /mnt/var/lib/machines
     cyan_output mount -o subvol=@home,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/home
     cyan_output mount -o subvol=@root,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/root
     cyan_output mount -o subvol=@srv,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/srv
     cyan_output mount -o subvol=@tmp,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/tmp
     cyan_output mount -o subvol=@log,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/log
     cyan_output mount -o subvol=@cache,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/cache
-    cyan_output mount -o subvol=@/var/lib/portables,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/lib/portables
-    cyan_output mount -o subvol=@/var/lib/machines,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/lib/machines
 
     # Install base system
     cyan_output setup-disk -m sys /mnt
@@ -185,8 +175,6 @@ $ROOT_PART /srv btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force
 $ROOT_PART /tmp btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@tmp 0 2
 $ROOT_PART /var/log btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@log 0 2
 $ROOT_PART /var/cache btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@cache 0 2
-$ROOT_PART /var/lib/portables btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@/var/lib/portables 0 2
-$ROOT_PART /var/lib/machines btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@/var/lib/machines 0 2
 EOF
 
 # Update repositories and install desktop environment
@@ -325,7 +313,17 @@ CHROOT
 }
 
 configure_installation() {
-    TARGET_DISK=$(dialog --title "Target Disk" --inputbox "Enter target disk (e.g. /dev/nvme0n1, /dev/sda):" 8 40 3>&1 1>&2 2>&3)
+    # List available disks
+    DISKS=$(lsblk -d -n -l -o NAME,SIZE,TYPE | grep -E 'disk|nvme' | awk '{print "/dev/" $1 " (" $2 ")"}')
+    
+    # Create dialog menu options
+    DISK_OPTIONS=()
+    IFS=$'\n'
+    for disk in $DISKS; do
+        DISK_OPTIONS+=("$disk" "")
+    done
+    
+    TARGET_DISK=$(dialog --title "Target Disk" --menu "Select target disk:" 15 45 5 "${DISK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
     HOSTNAME=$(dialog --title "Hostname" --inputbox "Enter hostname:" 8 40 3>&1 1>&2 2>&3)
     TIMEZONE=$(dialog --title "Timezone" --inputbox "Enter timezone (e.g. UTC):" 8 40 3>&1 1>&2 2>&3)
     KEYMAP=$(dialog --title "Keymap" --inputbox "Enter keymap (e.g. us):" 8 40 3>&1 1>&2 2>&3)
