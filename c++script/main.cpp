@@ -196,7 +196,7 @@ void perform_installation() {
     }
 
     // Install required tools
-    execute_command("apk add btrfs-progs parted dosfstools efibootmgr");
+    execute_command("apk add btrfs-progs parted dosfstools efibootmgr fuse");
     execute_command("modprobe btrfs");
 
     // Partitioning
