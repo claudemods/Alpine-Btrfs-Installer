@@ -29,7 +29,7 @@ cyan_output() {
     "$@" | while IFS= read -r line; do echo -e "${CYAN}$line${NC}"; done
 }
 
-# Improved NVMe/MMC support with better detection
+# Proper NVMe/MMC support
 get_part() {
     disk=$1
     part=$2
@@ -42,20 +42,15 @@ get_part() {
     fi
 }
 
-# New function to select boot partition format
+# Simplified boot format selection (only FAT32 and EXT4)
 select_boot_format() {
-    BOOT_FORMAT=$(dialog --title "Boot Partition Format" --menu "Select filesystem type for boot partition:" 12 40 4 \
+    BOOT_FORMAT=$(dialog --title "Boot Partition Format" --menu "Select filesystem type for boot partition:" 12 40 2 \
         "vfat" "FAT32 (Recommended for UEFI)" \
-        "ext4" "EXT4 (Alternative filesystem)" \
-        "btrfs" "BTRFS (Advanced users)" \
-        "f2fs" "F2FS (Flash-friendly)" 3>&1 1>&2 2>&3)
+        "ext4" "EXT4 (Alternative filesystem)" 3>&1 1>&2 2>&3)
     
-    # Set mkfs command based on selection
     case "$BOOT_FORMAT" in
         "vfat") BOOT_MKFS="mkfs.vfat -F32" ;;
         "ext4") BOOT_MKFS="mkfs.ext4 -F" ;;
-        "btrfs") BOOT_MKFS="mkfs.btrfs -f" ;;
-        "f2fs") BOOT_MKFS="mkfs.f2fs -f" ;;
         *) BOOT_MKFS="mkfs.vfat -F32" ;; # Default to FAT32
     esac
 }
@@ -115,7 +110,7 @@ perform_installation() {
     ROOT_PART=$(get_part "$TARGET_DISK" 2)
 
     # Install required tools
-    cyan_output apk add btrfs-progs parted dosfstools efibootmgr e2fsprogs f2fs-tools
+    cyan_output apk add btrfs-progs parted dosfstools efibootmgr e2fsprogs
     cyan_output modprobe btrfs
 
     # Partitioning
@@ -361,7 +356,7 @@ configure_installation() {
         "runit" "Runit init system" \
         "s6" "s6 init system" 3>&1 1>&2 2>&3)
     
-    # Boot partition format selection
+    # Boot partition format selection (only FAT32 and EXT4)
     select_boot_format
     
     COMPRESSION_LEVEL=$(dialog --title "Compression Level" --inputbox "Enter BTRFS compression level (1-22, default is 22):" 8 40 22 3>&1 1>&2 2>&3)
