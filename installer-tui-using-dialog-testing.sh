@@ -29,15 +29,35 @@ cyan_output() {
     "$@" | while IFS= read -r line; do echo -e "${CYAN}$line${NC}"; done
 }
 
-# Added NVMe/MMC support - ONLY CHANGE MADE
+# Improved NVMe/MMC support with better detection
 get_part() {
     disk=$1
     part=$2
-    if echo "$disk" | grep -q -E 'nvme|mmcblk'; then
+    if echo "$disk" | grep -q -E 'nvme[0-9]+n[0-9]+$'; then
+        echo "${disk}p${part}"
+    elif echo "$disk" | grep -q -E 'mmcblk[0-9]+$'; then
         echo "${disk}p${part}"
     else
         echo "${disk}${part}"
     fi
+}
+
+# New function to select boot partition format
+select_boot_format() {
+    BOOT_FORMAT=$(dialog --title "Boot Partition Format" --menu "Select filesystem type for boot partition:" 12 40 4 \
+        "vfat" "FAT32 (Recommended for UEFI)" \
+        "ext4" "EXT4 (Alternative filesystem)" \
+        "btrfs" "BTRFS (Advanced users)" \
+        "f2fs" "F2FS (Flash-friendly)" 3>&1 1>&2 2>&3)
+    
+    # Set mkfs command based on selection
+    case "$BOOT_FORMAT" in
+        "vfat") BOOT_MKFS="mkfs.vfat -F32" ;;
+        "ext4") BOOT_MKFS="mkfs.ext4 -F" ;;
+        "btrfs") BOOT_MKFS="mkfs.btrfs -f" ;;
+        "f2fs") BOOT_MKFS="mkfs.f2fs -f" ;;
+        *) BOOT_MKFS="mkfs.vfat -F32" ;; # Default to FAT32
+    esac
 }
 
 configure_fastest_mirrors() {
@@ -81,6 +101,7 @@ perform_installation() {
     echo "Desktop: $DESKTOP_ENV"
     echo "Bootloader: $BOOTLOADER"
     echo "Init System: $INIT_SYSTEM"
+    echo "Boot Format: $BOOT_FORMAT"
     echo "Compression Level: $COMPRESSION_LEVEL${NC}"
     echo -ne "${CYAN}Continue? (y/n): ${NC}"
     read confirm
@@ -89,12 +110,12 @@ perform_installation() {
         exit 1
     fi
 
-    # Get partition names
+    # Get partition names with proper NVMe/MMC handling
     BOOT_PART=$(get_part "$TARGET_DISK" 1)
     ROOT_PART=$(get_part "$TARGET_DISK" 2)
 
     # Install required tools
-    cyan_output apk add btrfs-progs parted dosfstools efibootmgr
+    cyan_output apk add btrfs-progs parted dosfstools efibootmgr e2fsprogs f2fs-tools
     cyan_output modprobe btrfs
 
     # Partitioning
@@ -104,7 +125,7 @@ perform_installation() {
     cyan_output parted -s "$TARGET_DISK" mkpart primary 513MiB 100%
 
     # Formatting
-    cyan_output mkfs.vfat -F32 "$BOOT_PART"
+    cyan_output $BOOT_MKFS "$BOOT_PART"
     cyan_output mkfs.btrfs -f "$ROOT_PART"
 
     # Mounting and subvolumes
@@ -163,9 +184,9 @@ setup-timezone -z "$TIMEZONE"
 setup-keymap "$KEYMAP" "$KEYMAP"
 echo "$HOSTNAME" > /etc/hostname
 
-# Generate fstab
+# Generate fstab with correct boot partition type
 cat << EOF > /etc/fstab
-$BOOT_PART /boot/efi vfat defaults 0 2
+$BOOT_PART /boot/efi $BOOT_FORMAT defaults 0 2
 $ROOT_PART / btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@ 0 1
 $ROOT_PART /home btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@home 0 2
 $ROOT_PART /root btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@root 0 2
@@ -339,6 +360,9 @@ configure_installation() {
         "sysvinit" "Traditional System V init" \
         "runit" "Runit init system" \
         "s6" "s6 init system" 3>&1 1>&2 2>&3)
+    
+    # Boot partition format selection
+    select_boot_format
     
     COMPRESSION_LEVEL=$(dialog --title "Compression Level" --inputbox "Enter BTRFS compression level (1-22, default is 22):" 8 40 22 3>&1 1>&2 2>&3)
     
