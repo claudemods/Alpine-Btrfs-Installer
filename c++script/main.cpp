@@ -2,159 +2,196 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include <fstream>
-#include <sstream>
+#include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/mount.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <limits>
 #include <algorithm>
-#include <filesystem>
-#include <ncurses.h>
-#include <menu.h>
-#include <form.h>
-#include <dialog.h>
 
-namespace fs = std::filesystem;
+using namespace std;
 
-// Constants
-const std::string RED = "\033[38;2;255;0;0m";
-const std::string CYAN = "\033[38;2;0;255;255m";
-const std::string NC = "\033[0m";
+// Color definitions
+#define RED "\033[38;2;255;0;0m"
+#define CYAN "\033[38;2;0;255;255m"
+#define NC "\033[0m"
 
-// Global configuration
-struct Config {
-    std::string target_disk;
-    std::string hostname;
-    std::string timezone;
-    std::string keymap;
-    std::string user_name;
-    std::string user_password;
-    std::string root_password;
-    std::string desktop_env;
-    std::string bootloader;
-    std::string init_system;
-    std::string boot_filesystem;
-    int compression_level;
-};
-
-Config config;
-
-// Function prototypes
-void show_ascii();
-void configure_fastest_mirrors();
-void perform_installation();
-void configure_installation();
-void main_menu();
-void execute_command(const std::string& cmd, bool show_output = true);
-std::string execute_command_with_output(const std::string& cmd);
-std::vector<std::string> get_available_disks();
-std::vector<std::string> get_timezones();
-std::vector<std::string> get_keymaps();
-bool is_efi_system();
-bool is_root();
-
-// Utility functions
-void execute_command(const std::string& cmd, bool show_output) {
-    if (show_output) {
-        std::cout << CYAN << "Executing: " << cmd << NC << std::endl;
-    }
-    int status = system(cmd.c_str());
-    if (status != 0 && show_output) {
-        std::cerr << "Command failed with status: " << status << std::endl;
-    }
-}
-
-std::string execute_command_with_output(const std::string& cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) {
-        result += buffer.data();
-    }
-    return result;
-}
-
-std::vector<std::string> get_available_disks() {
-    std::vector<std::string> disks;
-    for (const auto& entry : fs::directory_iterator("/dev")) {
-        std::string name = entry.path().filename();
-        if (name.find("sd") == 0 || name.find("nvme") == 0 || name.find("vd") == 0) {
-            disks.push_back("/dev/" + name);
-        }
-    }
-    return disks;
-}
-
-bool is_efi_system() {
-    return fs::exists("/sys/firmware/efi");
-}
-
-bool is_root() {
-    return getuid() == 0;
-}
+// Global configuration variables
+string TARGET_DISK;
+string HOSTNAME;
+string TIMEZONE;
+string KEYMAP;
+string USER_NAME;
+string USER_PASSWORD;
+string ROOT_PASSWORD;
+string DESKTOP_ENV;
+string BOOTLOADER;
+string INIT_SYSTEM;
+string BOOT_FS_TYPE;
+int COMPRESSION_LEVEL;
 
 void show_ascii() {
     system("clear");
-    std::cout << RED << R"(
-░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗
-██╔══██╗██║░░░░░██╔══██╗██║░░░██║██╔══██╗██╔════╝████╗░████║██╔══██╗██╔══██╗██╔════╝
-██║░░╚═╝██║░░░░░███████║██║░░░██║██║░░██║█████╗░░██╔████╔██║██║░░██║██║░░██║╚█████╗░
-██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗
-╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝
-░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░)" << NC << std::endl;
-    std::cout << CYAN << "Alpine Btrfs Installer v1.02 12-07-2025" << NC << std::endl << std::endl;
+    cout << RED
+         << "░█████╗░██╗░░░░░░█████╗░██║░░░██╗██████╗░███████╗███╗░░░███╗░█████╗░██████╗░░██████╗\n"
+         << "██╔══██╗██║░░░░░██╔══██╗██║░░░██║██╔══██╗██╔════╝████╗░████║██╔══██╗██╔══██╗██╔════╝\n"
+         << "██║░░╚═╝██║░░░░░███████║██║░░░██║██║░░██║█████╗░░██╔████╔██║██║░░██║██║░░██║╚█████╗░\n"
+         << "██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗\n"
+         << "╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝\n"
+         << "░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░" 
+         << NC << endl;
+    cout << CYAN << "Alpine Btrfs Installer v1.02 12-07-2025" << NC << endl << endl;
+}
+
+void execute_command(const string& cmd, bool show_output = true) {
+    if (show_output) {
+        cout << CYAN << "[EXEC] " << cmd << NC << endl;
+    }
+    int result = system(cmd.c_str());
+    if (result != 0 && show_output) {
+        cout << RED << "Command failed: " << cmd << NC << endl;
+    }
+}
+
+string get_dialog_input(const string& title, const string& prompt, const string& default_val = "") {
+    string cmd = "dialog --title \"" + title + "\" --inputbox \"" + prompt + "\" 10 50";
+    if (!default_val.empty()) {
+        cmd += " " + default_val;
+    }
+    cmd += " 2>&1 >/dev/tty";
+    
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        cerr << "Error opening pipe to dialog" << endl;
+        return "";
+    }
+
+    char buffer[128];
+    string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    // Remove trailing newline
+    if (!result.empty() && result[result.length()-1] == '\n') {
+        result.erase(result.length()-1);
+    }
+
+    return result;
+}
+
+string get_dialog_password(const string& title, const string& prompt) {
+    string cmd = "dialog --title \"" + title + "\" --passwordbox \"" + prompt + "\" 10 50 2>&1 >/dev/tty";
+    
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        cerr << "Error opening pipe to dialog" << endl;
+        return "";
+    }
+
+    char buffer[128];
+    string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    // Remove trailing newline
+    if (!result.empty() && result[result.length()-1] == '\n') {
+        result.erase(result.length()-1);
+    }
+
+    return result;
+}
+
+int get_dialog_menu(const string& title, const string& prompt, const vector<pair<string, string>>& options) {
+    string cmd = "dialog --title \"" + title + "\" --menu \"" + prompt + "\" 15 40 " + to_string(options.size());
+    for (const auto& opt : options) {
+        cmd += " \"" + opt.first + "\" \"" + opt.second + "\"";
+    }
+    cmd += " 2>&1 >/dev/tty";
+    
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        cerr << "Error opening pipe to dialog" << endl;
+        return -1;
+    }
+
+    char buffer[128];
+    string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    // Remove trailing newline
+    if (!result.empty() && result[result.length()-1] == '\n') {
+        result.erase(result.length()-1);
+    }
+
+    if (result.empty()) return -1;
+
+    // Find which option was selected
+    for (size_t i = 0; i < options.size(); i++) {
+        if (options[i].first == result) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+bool get_dialog_yesno(const string& title, const string& prompt) {
+    string cmd = "dialog --title \"" + title + "\" --yesno \"" + prompt + "\" 10 50 2>&1 >/dev/tty";
+    int result = system(cmd.c_str());
+    return (result == 0);
 }
 
 void configure_fastest_mirrors() {
     show_ascii();
-    int choice = dialog_yesno("Fastest Mirrors", "Would you like to find and use the fastest mirrors?", 7, 50);
-    
-    if (choice == 0) {
-        std::cout << CYAN << "Finding fastest mirrors..." << NC << std::endl;
-        execute_command("apk add reflector >/dev/null 2>&1");
+    if (get_dialog_yesno("Fastest Mirrors", "Would you like to find and use the fastest mirrors?")) {
+        cout << CYAN << "Finding fastest mirrors..." << NC << endl;
+        execute_command("apk add reflector", false);
         execute_command("reflector --latest 20 --protocol https --sort rate --save /etc/apk/repositories");
-        std::cout << CYAN << "Mirrorlist updated with fastest mirrors" << NC << std::endl;
+        cout << CYAN << "Mirrorlist updated with fastest mirrors" << NC << endl;
     } else {
-        std::cout << CYAN << "Using default mirrors" << NC << std::endl;
+        cout << CYAN << "Using default mirrors" << NC << endl;
     }
 }
 
 void perform_installation() {
     show_ascii();
 
-    if (!is_root()) {
-        std::cerr << CYAN << "This script must be run as root or with sudo" << NC << std::endl;
+    // Check root
+    if (getuid() != 0) {
+        cout << CYAN << "This script must be run as root or with sudo" << NC << endl;
         exit(1);
     }
 
-    if (!is_efi_system()) {
-        std::cerr << CYAN << "ERROR: This script requires UEFI boot mode" << NC << std::endl;
+    // Check UEFI
+    if (access("/sys/firmware/efi", F_OK) == -1) {
+        cout << CYAN << "ERROR: This script requires UEFI boot mode" << NC << endl;
         exit(1);
     }
 
-    std::cout << CYAN << "About to install to " << config.target_disk << " with these settings:" << NC << std::endl;
-    std::cout << "Hostname: " << config.hostname << std::endl;
-    std::cout << "Timezone: " << config.timezone << std::endl;
-    std::cout << "Keymap: " << config.keymap << std::endl;
-    std::cout << "Username: " << config.user_name << std::endl;
-    std::cout << "Desktop: " << config.desktop_env << std::endl;
-    std::cout << "Bootloader: " << config.bootloader << std::endl;
-    std::cout << "Init System: " << config.init_system << std::endl;
-    std::cout << "Boot Filesystem: " << config.boot_filesystem << std::endl;
-    std::cout << "Compression Level: " << config.compression_level << NC << std::endl;
+    // Confirm installation
+    cout << CYAN << "About to install to " << TARGET_DISK << " with these settings:" << endl;
+    cout << "Hostname: " << HOSTNAME << endl;
+    cout << "Timezone: " << TIMEZONE << endl;
+    cout << "Keymap: " << KEYMAP << endl;
+    cout << "Username: " << USER_NAME << endl;
+    cout << "Desktop: " << DESKTOP_ENV << endl;
+    cout << "Bootloader: " << BOOTLOADER << endl;
+    cout << "Init System: " << INIT_SYSTEM << endl;
+    cout << "Boot Filesystem: " << BOOT_FS_TYPE << endl;
+    cout << "Compression Level: " << COMPRESSION_LEVEL << NC << endl;
     
-    std::cout << CYAN << "Continue? (y/n): " << NC;
-    char confirm;
-    std::cin >> confirm;
-    if (confirm != 'y') {
-        std::cout << CYAN << "Installation cancelled." << NC << std::endl;
+    if (!get_dialog_yesno("Confirmation", "Continue with installation?")) {
+        cout << CYAN << "Installation cancelled." << NC << endl;
         exit(1);
     }
 
@@ -162,32 +199,37 @@ void perform_installation() {
     execute_command("apk add btrfs-progs parted dosfstools efibootmgr");
     execute_command("modprobe btrfs");
 
-    // Determine partition names based on disk type
-    std::string part1, part2;
-    if (config.target_disk.find("nvme") != std::string::npos) {
-        part1 = config.target_disk + "p1";
-        part2 = config.target_disk + "p2";
-    } else {
-        part1 = config.target_disk + "1";
-        part2 = config.target_disk + "2";
-    }
-
     // Partitioning
-    execute_command("parted -s " + config.target_disk + " mklabel gpt");
-    execute_command("parted -s " + config.target_disk + " mkpart primary 1MiB 513MiB");
-    execute_command("parted -s " + config.target_disk + " set 1 esp on");
-    execute_command("parted -s " + config.target_disk + " mkpart primary 513MiB 100%");
+    execute_command("parted -s " + TARGET_DISK + " mklabel gpt");
+    execute_command("parted -s " + TARGET_DISK + " mkpart primary 1MiB 513MiB");
+    execute_command("parted -s " + TARGET_DISK + " set 1 esp on");
+    execute_command("parted -s " + TARGET_DISK + " mkpart primary 513MiB 100%");
 
     // Formatting
-    if (config.boot_filesystem == "fat32") {
-        execute_command("mkfs.vfat -F32 " + part1);
-    } else if (config.boot_filesystem == "ext4") {
-        execute_command("mkfs.ext4 " + part1);
+    string boot_part = TARGET_DISK;
+    if (boot_part.find("nvme") != string::npos) {
+        boot_part += "p1";
+    } else {
+        boot_part += "1";
     }
-    execute_command("mkfs.btrfs -f " + part2);
+
+    string root_part = TARGET_DISK;
+    if (root_part.find("nvme") != string::npos) {
+        root_part += "p2";
+    } else {
+        root_part += "2";
+    }
+
+    if (BOOT_FS_TYPE == "fat32") {
+        execute_command("mkfs.vfat -F32 " + boot_part);
+    } else if (BOOT_FS_TYPE == "ext4") {
+        execute_command("mkfs.ext4 " + boot_part);
+    }
+    
+    execute_command("mkfs.btrfs -f " + root_part);
 
     // Mounting and subvolumes
-    execute_command("mount " + part2 + " /mnt");
+    execute_command("mount " + root_part + " /mnt");
     execute_command("btrfs subvolume create /mnt/@");
     execute_command("btrfs subvolume create /mnt/@home");
     execute_command("btrfs subvolume create /mnt/@root");
@@ -198,23 +240,28 @@ void perform_installation() {
     execute_command("umount /mnt");
 
     // Remount with compression
-    std::string compress_options = "compress=zstd:" + std::to_string(config.compression_level) + 
-                                 ",compress-force=zstd:" + std::to_string(config.compression_level);
-    execute_command("mount -o subvol=@," + compress_options + " " + part2 + " /mnt");
+    execute_command("mount -o subvol=@,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt");
     execute_command("mkdir -p /mnt/boot/efi");
-    execute_command("mount " + part1 + " /mnt/boot/efi");
+    execute_command("mount " + boot_part + " /mnt/boot/efi");
     execute_command("mkdir -p /mnt/home");
     execute_command("mkdir -p /mnt/root");
     execute_command("mkdir -p /mnt/srv");
     execute_command("mkdir -p /mnt/tmp");
     execute_command("mkdir -p /mnt/var/cache");
     execute_command("mkdir -p /mnt/var/log");
-    execute_command("mount -o subvol=@home," + compress_options + " " + part2 + " /mnt/home");
-    execute_command("mount -o subvol=@root," + compress_options + " " + part2 + " /mnt/root");
-    execute_command("mount -o subvol=@srv," + compress_options + " " + part2 + " /mnt/srv");
-    execute_command("mount -o subvol=@tmp," + compress_options + " " + part2 + " /mnt/tmp");
-    execute_command("mount -o subvol=@log," + compress_options + " " + part2 + " /mnt/var/log");
-    execute_command("mount -o subvol=@cache," + compress_options + " " + part2 + " /mnt/var/cache");
+    execute_command("mount -o subvol=@home,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/home");
+    execute_command("mount -o subvol=@root,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/root");
+    execute_command("mount -o subvol=@srv,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/srv");
+    execute_command("mount -o subvol=@tmp,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/tmp");
+    execute_command("mount -o subvol=@log,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/var/log");
+    execute_command("mount -o subvol=@cache,compress=zstd:" + to_string(COMPRESSION_LEVEL) + 
+                   ",compress-force=zstd:" + to_string(COMPRESSION_LEVEL) + " " + root_part + " /mnt/var/cache");
 
     // Install base system
     execute_command("setup-disk -m sys /mnt");
@@ -224,160 +271,156 @@ void perform_installation() {
     execute_command("mount --rbind /dev /mnt/dev");
     execute_command("mount --rbind /sys /mnt/sys");
 
-    // Determine login manager based on desktop environment
-    std::string login_manager = "none";
-    if (config.desktop_env == "KDE Plasma") {
-        login_manager = "sddm";
-    } else if (config.desktop_env == "GNOME") {
-        login_manager = "gdm";
-    } else if (config.desktop_env == "XFCE" || config.desktop_env == "MATE" || config.desktop_env == "LXQt") {
-        login_manager = "lightdm";
+    // Determine login manager
+    string LOGIN_MANAGER = "none";
+    if (DESKTOP_ENV == "KDE Plasma") {
+        LOGIN_MANAGER = "sddm";
+    } else if (DESKTOP_ENV == "GNOME") {
+        LOGIN_MANAGER = "gdm";
+    } else if (DESKTOP_ENV == "XFCE" || DESKTOP_ENV == "MATE" || DESKTOP_ENV == "LXQt") {
+        LOGIN_MANAGER = "lightdm";
     }
 
     // Create chroot setup script
-    std::ofstream chroot_script("/mnt/setup-chroot.sh");
-    if (chroot_script.is_open()) {
-        chroot_script << "#!/bin/ash\n\n";
-        chroot_script << "# Basic system configuration\n";
-        chroot_script << "echo \"root:" << config.root_password << "\" | chpasswd\n";
-        chroot_script << "adduser -D " << config.user_name << " -G wheel,video,audio,input\n";
-        chroot_script << "echo \"" << config.user_name << ":" << config.user_password << "\" | chpasswd\n";
-        chroot_script << "setup-timezone -z " << config.timezone << "\n";
-        chroot_script << "setup-keymap " << config.keymap << " " << config.keymap << "\n";
-        chroot_script << "echo \"" << config.hostname << "\" > /etc/hostname\n\n";
+    ofstream chroot_script("/mnt/setup-chroot.sh");
+    chroot_script << "#!/bin/ash\n\n";
+    chroot_script << "# Basic system configuration\n";
+    chroot_script << "echo \"root:" << ROOT_PASSWORD << "\" | chpasswd\n";
+    chroot_script << "adduser -D " << USER_NAME << " -G wheel,video,audio,input\n";
+    chroot_script << "echo \"" << USER_NAME << ":" << USER_PASSWORD << "\" | chpasswd\n";
+    chroot_script << "setup-timezone -z " << TIMEZONE << "\n";
+    chroot_script << "setup-keymap " << KEYMAP << " " << KEYMAP << "\n";
+    chroot_script << "echo \"" << HOSTNAME << "\" > /etc/hostname\n\n";
 
-        // Generate fstab
-        chroot_script << "# Generate fstab\n";
-        chroot_script << "cat << EOF > /etc/fstab\n";
-        chroot_script << part1 << " /boot/efi " << config.boot_filesystem << " defaults 0 2\n";
-        chroot_script << part2 << " / btrfs rw,noatime," << compress_options << ",subvol=@ 0 1\n";
-        chroot_script << part2 << " /home btrfs rw,noatime," << compress_options << ",subvol=@home 0 2\n";
-        chroot_script << part2 << " /root btrfs rw,noatime," << compress_options << ",subvol=@root 0 2\n";
-        chroot_script << part2 << " /srv btrfs rw,noatime," << compress_options << ",subvol=@srv 0 2\n";
-        chroot_script << part2 << " /tmp btrfs rw,noatime," << compress_options << ",subvol=@tmp 0 2\n";
-        chroot_script << part2 << " /var/log btrfs rw,noatime," << compress_options << ",subvol=@log 0 2\n";
-        chroot_script << part2 << " /var/cache btrfs rw,noatime," << compress_options << ",subvol=@cache 0 2\n";
-        chroot_script << "EOF\n\n";
+    chroot_script << "# Generate fstab\n";
+    chroot_script << "cat << EOF > /etc/fstab\n";
+    chroot_script << boot_part << " /boot/efi " << BOOT_FS_TYPE << " defaults 0 2\n";
+    chroot_script << root_part << " / btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@ 0 1\n";
+    chroot_script << root_part << " /home btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@home 0 2\n";
+    chroot_script << root_part << " /root btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@root 0 2\n";
+    chroot_script << root_part << " /srv btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@srv 0 2\n";
+    chroot_script << root_part << " /tmp btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@tmp 0 2\n";
+    chroot_script << root_part << " /var/log btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@log 0 2\n";
+    chroot_script << root_part << " /var/cache btrfs rw,noatime,compress=zstd:" << COMPRESSION_LEVEL << ",compress-force=zstd:" << COMPRESSION_LEVEL << ",subvol=@cache 0 2\n";
+    chroot_script << "EOF\n\n";
 
-        // Update repositories and install desktop environment
-        chroot_script << "# Update repositories and install desktop environment\n";
-        chroot_script << "apk update\n";
-        
-        if (config.desktop_env == "KDE Plasma") {
-            chroot_script << "setup-desktop plasma\n";
-            chroot_script << "apk add plasma-nm\n";
-        } else if (config.desktop_env == "GNOME") {
-            chroot_script << "setup-desktop gnome\n";
-            chroot_script << "apk add networkmanager-gnome\n";
-        } else if (config.desktop_env == "XFCE") {
-            chroot_script << "setup-desktop xfce\n";
-            chroot_script << "apk add networkmanager-gtk\n";
-        } else if (config.desktop_env == "MATE") {
-            chroot_script << "setup-desktop mate\n";
-            chroot_script << "apk add networkmanager-gtk\n";
-        } else if (config.desktop_env == "LXQt") {
-            chroot_script << "setup-desktop lxqt\n";
-            chroot_script << "apk add networkmanager-qt\n";
-        } else {
-            chroot_script << "echo \"No desktop environment selected\"\n";
-            chroot_script << "apk add networkmanager\n";
-        }
-        chroot_script << "\n";
-
-        // Install bootloader
-        chroot_script << "# Install bootloader\n";
-        if (config.bootloader == "GRUB") {
-            chroot_script << "apk add grub-efi\n";
-            chroot_script << "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE\n";
-            chroot_script << "grub-mkconfig -o /boot/grub/grub.cfg\n";
-        } else if (config.bootloader == "rEFInd") {
-            chroot_script << "apk add refind\n";
-            chroot_script << "refind-install\n";
-        }
-        chroot_script << "\n";
-
-        // Configure init system
-        chroot_script << "# Configure init system\n";
-        if (config.init_system == "OpenRC") {
-            chroot_script << "rc-update add dbus\n";
-            chroot_script << "rc-update add networkmanager\n";
-            if (login_manager != "none") {
-                chroot_script << "rc-update add " << login_manager << "\n";
-            }
-        } else if (config.init_system == "sysvinit") {
-            chroot_script << "apk add sysvinit openrc\n";
-            chroot_script << "ln -sf /etc/inittab.sysvinit /etc/inittab\n";
-            chroot_script << "for service in dbus networkmanager " << login_manager << "; do\n";
-            chroot_script << "    if [ -f \"/etc/init.d/$service\" ]; then\n";
-            chroot_script << "        ln -s /etc/init.d/$service /etc/rc.d/\n";
-            chroot_script << "    fi\n";
-            chroot_script << "done\n";
-        } else if (config.init_system == "runit") {
-            chroot_script << "apk add runit runit-openrc\n";
-            chroot_script << "mkdir -p /etc/service\n";
-            chroot_script << "if [ -f \"/etc/init.d/dbus\" ]; then\n";
-            chroot_script << "    mkdir -p /etc/service/dbus\n";
-            chroot_script << "    echo '#!/bin/sh' > /etc/service/dbus/run\n";
-            chroot_script << "    echo 'exec /etc/init.d/dbus start' >> /etc/service/dbus/run\n";
-            chroot_script << "    chmod +x /etc/service/dbus/run\n";
-            chroot_script << "fi\n";
-        } else if (config.init_system == "s6") {
-            chroot_script << "apk add s6 s6-openrc\n";
-            chroot_script << "mkdir -p /etc/s6/sv\n";
-            chroot_script << "if [ -f \"/etc/init.d/dbus\" ]; then\n";
-            chroot_script << "    mkdir -p /etc/s6/sv/dbus\n";
-            chroot_script << "    echo '#!/bin/sh' > /etc/s6/sv/dbus/run\n";
-            chroot_script << "    echo 'exec /etc/init.d/dbus start' >> /etc/s6/sv/dbus/run\n";
-            chroot_script << "    chmod +x /etc/s6/sv/dbus/run\n";
-            chroot_script << "fi\n";
-        }
-        chroot_script << "\n";
-
-        // Clean up
-        chroot_script << "# Clean up\n";
-        chroot_script << "rm /setup-chroot.sh\n";
-
-        chroot_script.close();
+    chroot_script << "# Update repositories and install desktop environment\n";
+    chroot_script << "apk update\n";
+    
+    if (DESKTOP_ENV == "KDE Plasma") {
+        chroot_script << "setup-desktop plasma\n";
+        chroot_script << "apk add plasma-nm\n";
+    } else if (DESKTOP_ENV == "GNOME") {
+        chroot_script << "setup-desktop gnome\n";
+        chroot_script << "apk add networkmanager-gnome\n";
+    } else if (DESKTOP_ENV == "XFCE") {
+        chroot_script << "setup-desktop xfce\n";
+        chroot_script << "apk add networkmanager-gtk\n";
+    } else if (DESKTOP_ENV == "MATE") {
+        chroot_script << "setup-desktop mate\n";
+        chroot_script << "apk add networkmanager-gtk\n";
+    } else if (DESKTOP_ENV == "LXQt") {
+        chroot_script << "setup-desktop lxqt\n";
+        chroot_script << "apk add networkmanager-qt\n";
+    } else {
+        chroot_script << "echo \"No desktop environment selected\"\n";
+        chroot_script << "apk add networkmanager\n";
     }
+    chroot_script << "\n";
 
-    // Make chroot script executable and run it
+    // Install bootloader
+    if (BOOTLOADER == "GRUB") {
+        chroot_script << "apk add grub-efi\n";
+        chroot_script << "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ALPINE\n";
+        chroot_script << "grub-mkconfig -o /boot/grub/grub.cfg\n";
+    } else if (BOOTLOADER == "rEFInd") {
+        chroot_script << "apk add refind\n";
+        chroot_script << "refind-install\n";
+    }
+    chroot_script << "\n";
+
+    // Configure init system
+    if (INIT_SYSTEM == "OpenRC") {
+        chroot_script << "rc-update add dbus\n";
+        chroot_script << "rc-update add networkmanager\n";
+        if (LOGIN_MANAGER != "none") {
+            chroot_script << "rc-update add " << LOGIN_MANAGER << "\n";
+        }
+    } else if (INIT_SYSTEM == "sysvinit") {
+        chroot_script << "apk add sysvinit openrc\n";
+        chroot_script << "ln -sf /etc/inittab.sysvinit /etc/inittab\n";
+        chroot_script << "if [ -f \"/etc/init.d/dbus\" ]; then\n";
+        chroot_script << "    ln -s /etc/init.d/dbus /etc/rc.d/\n";
+        chroot_script << "fi\n";
+        chroot_script << "if [ -f \"/etc/init.d/networkmanager\" ]; then\n";
+        chroot_script << "    ln -s /etc/init.d/networkmanager /etc/rc.d/\n";
+        chroot_script << "fi\n";
+        if (LOGIN_MANAGER != "none") {
+            chroot_script << "if [ -f \"/etc/init.d/" << LOGIN_MANAGER << "\" ]; then\n";
+            chroot_script << "    ln -s /etc/init.d/" << LOGIN_MANAGER << " /etc/rc.d/\n";
+            chroot_script << "fi\n";
+        }
+    } else if (INIT_SYSTEM == "runit") {
+        chroot_script << "apk add runit runit-openrc\n";
+        chroot_script << "mkdir -p /etc/service\n";
+        chroot_script << "if [ -f \"/etc/init.d/dbus\" ]; then\n";
+        chroot_script << "    mkdir -p /etc/service/dbus\n";
+        chroot_script << "    echo '#!/bin/sh' > /etc/service/dbus/run\n";
+        chroot_script << "    echo 'exec /etc/init.d/dbus start' >> /etc/service/dbus/run\n";
+        chroot_script << "    chmod +x /etc/service/dbus/run\n";
+        chroot_script << "fi\n";
+    } else if (INIT_SYSTEM == "s6") {
+        chroot_script << "apk add s6 s6-openrc\n";
+        chroot_script << "mkdir -p /etc/s6/sv\n";
+        chroot_script << "if [ -f \"/etc/init.d/dbus\" ]; then\n";
+        chroot_script << "    mkdir -p /etc/s6/sv/dbus\n";
+        chroot_script << "    echo '#!/bin/sh' > /etc/s6/sv/dbus/run\n";
+        chroot_script << "    echo 'exec /etc/init.d/dbus start' >> /etc/s6/sv/dbus/run\n";
+        chroot_script << "    chmod +x /etc/s6/sv/dbus/run\n";
+        chroot_script << "fi\n";
+    }
+    chroot_script << "\n# Clean up\nrm /setup-chroot.sh\n";
+    chroot_script.close();
+
+    // Make script executable and run it
     execute_command("chmod +x /mnt/setup-chroot.sh");
     execute_command("chroot /mnt /setup-chroot.sh");
 
-    execute_command("umount -l /mnt");
-    std::cout << CYAN << "Installation complete!" << NC << std::endl;
+    // Unmount everything
+    execute_command("umount -R /mnt");
+    cout << CYAN << "Installation complete!" << NC << endl;
 
     // Post-install menu
     while (true) {
-        const char *choices[] = {
-            "Reboot now",
-            "Chroot into installed system",
-            "Exit without rebooting",
-            NULL
+        vector<pair<string, string>> options = {
+            {"1", "Reboot now"},
+            {"2", "Chroot into installed system"},
+            {"3", "Exit without rebooting"}
         };
 
-        int choice = dialog_menu("Installation Complete", "Select post-install action:", choices, 0);
+        int choice = get_dialog_menu("Installation Complete", "Select post-install action:", options);
         
         switch (choice) {
             case 0: // Reboot
-                std::cout << CYAN << "Rebooting system..." << NC << std::endl;
+                cout << CYAN << "Rebooting system..." << NC << endl;
                 execute_command("reboot");
                 break;
             case 1: // Chroot
-                std::cout << CYAN << "Entering chroot..." << NC << std::endl;
-                execute_command("mount " + part1 + " /mnt/boot/efi");
-                execute_command("mount -o subvol=@ " + part2 + " /mnt");
+                cout << CYAN << "Entering chroot..." << NC << endl;
+                execute_command("mount " + boot_part + " /mnt/boot/efi");
+                execute_command("mount -o subvol=@ " + root_part + " /mnt");
                 execute_command("mount -t proc none /mnt/proc");
                 execute_command("mount --rbind /dev /mnt/dev");
                 execute_command("mount --rbind /sys /mnt/sys");
                 execute_command("mount --rbind /dev/pts /mnt/dev/pts");
                 execute_command("chroot /mnt /bin/ash");
-                execute_command("umount -l /mnt");
+                execute_command("umount -R /mnt");
                 break;
             case 2: // Exit
+                cout << CYAN << "Exiting installer." << NC << endl;
                 exit(0);
             default:
-                std::cout << CYAN << "Invalid option selected" << NC << std::endl;
+                cout << CYAN << "Invalid option selected" << NC << endl;
                 break;
         }
     }
@@ -386,120 +429,104 @@ void perform_installation() {
 void configure_installation() {
     show_ascii();
 
-    // Get available disks
-    auto disks = get_available_disks();
-    std::vector<const char*> disk_choices;
-    for (const auto& disk : disks) {
-        disk_choices.push_back(disk.c_str());
-    }
-    disk_choices.push_back(nullptr);
-    
-    int disk_idx = dialog_menu("Target Disk", "Select target disk:", disk_choices.data(), 0);
-    if (disk_idx >= 0 && disk_idx < disks.size()) {
-        config.target_disk = disks[disk_idx];
-    } else {
-        config.target_disk = "/dev/nvme0n1"; // Default
+    // Get target disk
+    TARGET_DISK = get_dialog_input("Target Disk", "Enter target disk (e.g. /dev/nvme0n1, /dev/sda):");
+    if (TARGET_DISK.empty()) {
+        cout << RED << "Target disk is required!" << NC << endl;
+        exit(1);
     }
 
-    // Hostname
-    config.hostname = dialog_inputbox("Hostname", "Enter hostname:", "alpine", 8, 40);
-
-    // Timezone
-    config.timezone = dialog_inputbox("Timezone", "Enter timezone (e.g. UTC):", "UTC", 8, 40);
-
-    // Keymap
-    config.keymap = dialog_inputbox("Keymap", "Enter keymap (e.g. us):", "us", 8, 40);
-
-    // Username
-    config.user_name = dialog_inputbox("Username", "Enter username:", "user", 8, 40);
-
-    // Passwords
-    config.user_password = dialog_passwordbox("User Password", "Enter user password:", 8, 40);
-    config.root_password = dialog_passwordbox("Root Password", "Enter root password:", 8, 40);
-
-    // Desktop environment
-    const char *desktop_choices[] = {
-        "KDE Plasma",
-        "GNOME",
-        "XFCE",
-        "MATE",
-        "LXQt",
-        "None",
-        NULL
+    // Get boot filesystem type
+    vector<pair<string, string>> fs_options = {
+        {"fat32", "FAT32 (Recommended for UEFI)"},
+        {"ext4", "EXT4 (Alternative)"}
     };
-    int desktop_idx = dialog_menu("Desktop Environment", "Select desktop environment:", desktop_choices, 0);
-    if (desktop_idx >= 0 && desktop_idx < 6) {
-        config.desktop_env = desktop_choices[desktop_idx];
+    int fs_choice = get_dialog_menu("Boot Filesystem", "Select boot partition filesystem:", fs_options);
+    if (fs_choice == 0) {
+        BOOT_FS_TYPE = "fat32";
+    } else if (fs_choice == 1) {
+        BOOT_FS_TYPE = "ext4";
     } else {
-        config.desktop_env = "None";
+        cout << RED << "Boot filesystem selection is required!" << NC << endl;
+        exit(1);
     }
 
-    // Bootloader
-    const char *bootloader_choices[] = {
-        "GRUB",
-        "rEFInd",
-        NULL
+    // Get other configuration
+    HOSTNAME = get_dialog_input("Hostname", "Enter hostname:");
+    TIMEZONE = get_dialog_input("Timezone", "Enter timezone (e.g. America/New_York):");
+    KEYMAP = get_dialog_input("Keymap", "Enter keymap (e.g. us):");
+    USER_NAME = get_dialog_input("Username", "Enter username:");
+    USER_PASSWORD = get_dialog_password("User Password", "Enter user password:");
+    ROOT_PASSWORD = get_dialog_password("Root Password", "Enter root password:");
+
+    // Get desktop environment
+    vector<pair<string, string>> de_options = {
+        {"KDE Plasma", "KDE Plasma Desktop"},
+        {"GNOME", "GNOME Desktop"},
+        {"XFCE", "XFCE Desktop"},
+        {"MATE", "MATE Desktop"},
+        {"LXQt", "LXQt Desktop"},
+        {"None", "No desktop environment"}
     };
-    int bootloader_idx = dialog_menu("Bootloader", "Select bootloader:", bootloader_choices, 0);
-    if (bootloader_idx >= 0 && bootloader_idx < 2) {
-        config.bootloader = bootloader_choices[bootloader_idx];
+    int de_choice = get_dialog_menu("Desktop Environment", "Select desktop environment:", de_options);
+    if (de_choice >= 0 && de_choice < de_options.size()) {
+        DESKTOP_ENV = de_options[de_choice].first;
     } else {
-        config.bootloader = "GRUB";
+        DESKTOP_ENV = "None";
     }
 
-    // Init system
-    const char *init_choices[] = {
-        "OpenRC",
-        "sysvinit",
-        "runit",
-        "s6",
-        NULL
+    // Get bootloader
+    vector<pair<string, string>> bl_options = {
+        {"GRUB", "GRUB (Recommended)"},
+        {"rEFInd", "Graphical boot manager"}
     };
-    int init_idx = dialog_menu("Init System", "Select init system:", init_choices, 0);
-    if (init_idx >= 0 && init_idx < 4) {
-        config.init_system = init_choices[init_idx];
+    int bl_choice = get_dialog_menu("Bootloader", "Select bootloader:", bl_options);
+    if (bl_choice == 0) {
+        BOOTLOADER = "GRUB";
+    } else if (bl_choice == 1) {
+        BOOTLOADER = "rEFInd";
     } else {
-        config.init_system = "OpenRC";
+        BOOTLOADER = "GRUB";
     }
 
-    // Boot filesystem
-    const char *fs_choices[] = {
-        "fat32",
-        "ext4",
-        NULL
+    // Get init system
+    vector<pair<string, string>> init_options = {
+        {"OpenRC", "Alpine's default init system"},
+        {"sysvinit", "Traditional System V init"},
+        {"runit", "Runit init system"},
+        {"s6", "s6 init system"}
     };
-    int fs_idx = dialog_menu("Boot Filesystem", "Select boot filesystem:", fs_choices, 0);
-    if (fs_idx >= 0 && fs_idx < 2) {
-        config.boot_filesystem = fs_choices[fs_idx];
+    int init_choice = get_dialog_menu("Init System", "Select init system:", init_options);
+    if (init_choice >= 0 && init_choice < init_options.size()) {
+        INIT_SYSTEM = init_options[init_choice].first;
     } else {
-        config.boot_filesystem = "fat32";
+        INIT_SYSTEM = "OpenRC";
     }
 
-    // Compression level
-    std::string compression_str = dialog_inputbox("Compression Level", "Enter BTRFS compression level (1-22, default is 22):", "22", 8, 40);
+    // Get compression level
+    string comp_level = get_dialog_input("Compression Level", "Enter BTRFS compression level (1-22):");
     try {
-        config.compression_level = std::stoi(compression_str);
-        if (config.compression_level < 1 || config.compression_level > 22) {
-            dialog_msgbox("Invalid Compression Level", "Using default value (22).", 6, 40);
-            config.compression_level = 22;
+        COMPRESSION_LEVEL = stoi(comp_level);
+        if (COMPRESSION_LEVEL < 1 || COMPRESSION_LEVEL > 22) {
+            cout << RED << "Invalid compression level. Using default (3)." << NC << endl;
+            COMPRESSION_LEVEL = 3;
         }
     } catch (...) {
-        dialog_msgbox("Invalid Compression Level", "Using default value (22).", 6, 40);
-        config.compression_level = 22;
+        cout << RED << "Invalid compression level. Using default (3)." << NC << endl;
+        COMPRESSION_LEVEL = 3;
     }
 }
 
 void main_menu() {
     while (true) {
-        const char *choices[] = {
-            "Configure Installation",
-            "Find Fastest Mirrors",
-            "Start Installation",
-            "Exit",
-            NULL
+        vector<pair<string, string>> options = {
+            {"1", "Configure Installation"},
+            {"2", "Find Fastest Mirrors"},
+            {"3", "Start Installation"},
+            {"4", "Exit"}
         };
 
-        int choice = dialog_menu("Alpine Btrfs Installer v1.02 12-07-2025", "Select option:", choices, 0);
+        int choice = get_dialog_menu("Alpine Btrfs Installer v1.02 12-07-2025", "Select option:", options);
         
         switch (choice) {
             case 0: // Configure
@@ -509,32 +536,24 @@ void main_menu() {
                 configure_fastest_mirrors();
                 break;
             case 2: // Install
-                if (config.target_disk.empty()) {
-                    dialog_msgbox("Error", "Please configure installation first!", 6, 40);
+                if (TARGET_DISK.empty()) {
+                    cout << RED << "Please configure installation first!" << NC << endl;
                 } else {
                     perform_installation();
                 }
                 break;
             case 3: // Exit
+                cout << CYAN << "Exiting installer." << NC << endl;
                 exit(0);
             default:
+                cout << CYAN << "Invalid option selected" << NC << endl;
                 break;
         }
     }
 }
 
 int main() {
-    // Initialize dialog
-    dialog_init();
-    
-    // Set default configuration
-    config.compression_level = 22;
-    config.boot_filesystem = "fat32";
-    
     show_ascii();
     main_menu();
-    
-    // Clean up dialog
-    dialog_cleanup();
     return 0;
 }
