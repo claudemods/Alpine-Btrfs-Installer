@@ -21,12 +21,38 @@ show_ascii() {
 ██║░░██╗██║░░░░░██╔══██║██║░░░██║██║░░██║██╔══╝░░██║╚██╔╝██║██║░░██║██║░░██║░╚═══██╗
 ╚█████╔╝███████╗██║░░██║╚██████╔╝██████╔╝███████╗██║░╚═╝░██║╚█████╔╝██████╔╝██████╔╝
 ░╚════╝░╚══════╝╚═╝░░╚═╝░╚═════╝░╚═════╝░╚══════╝╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚═════╝░${NC}"
-    echo -e "${CYAN}Alpine Btrfs Installer v1.03 12-07-2025${NC}"
+    echo -e "${CYAN}Alpine Btrfs Installer v1.02 12-07-2025${NC}"
     echo
 }
 
 cyan_output() {
     "$@" | while IFS= read -r line; do echo -e "${CYAN}$line${NC}"; done
+}
+
+# Proper NVMe/MMC support
+get_part() {
+    disk=$1
+    part=$2
+    if echo "$disk" | grep -q -E 'nvme[0-9]+n[0-9]+$'; then
+        echo "${disk}p${part}"
+    elif echo "$disk" | grep -q -E 'mmcblk[0-9]+$'; then
+        echo "${disk}p${part}"
+    else
+        echo "${disk}${part}"
+    fi
+}
+
+# Simplified boot format selection (only FAT32 and EXT4)
+select_boot_format() {
+    BOOT_FORMAT=$(dialog --title "Boot Partition Format" --menu "Select filesystem type for boot partition:" 12 40 2 \
+        "vfat" "FAT32 (Recommended for UEFI)" \
+        "ext4" "EXT4 (Alternative filesystem)" 3>&1 1>&2 2>&3)
+    
+    case "$BOOT_FORMAT" in
+        "vfat") BOOT_MKFS="mkfs.vfat -F32" ;;
+        "ext4") BOOT_MKFS="mkfs.ext4 -F" ;;
+        *) BOOT_MKFS="mkfs.vfat -F32" ;; # Default to FAT32
+    esac
 }
 
 configure_fastest_mirrors() {
@@ -70,6 +96,7 @@ perform_installation() {
     echo "Desktop: $DESKTOP_ENV"
     echo "Bootloader: $BOOTLOADER"
     echo "Init System: $INIT_SYSTEM"
+    echo "Boot Format: $BOOT_FORMAT"
     echo "Compression Level: $COMPRESSION_LEVEL${NC}"
     echo -ne "${CYAN}Continue? (y/n): ${NC}"
     read confirm
@@ -78,8 +105,12 @@ perform_installation() {
         exit 1
     fi
 
+    # Get partition names with proper NVMe/MMC handling
+    BOOT_PART=$(get_part "$TARGET_DISK" 1)
+    ROOT_PART=$(get_part "$TARGET_DISK" 2)
+
     # Install required tools
-    cyan_output apk add btrfs-progs parted dosfstools efibootmgr
+    cyan_output apk add btrfs-progs parted dosfstools efibootmgr e2fsprogs fuse
     cyan_output modprobe btrfs
 
     # Partitioning
@@ -89,11 +120,11 @@ perform_installation() {
     cyan_output parted -s "$TARGET_DISK" mkpart primary 513MiB 100%
 
     # Formatting
-    cyan_output mkfs.vfat -F32 "${TARGET_DISK}1"
-    cyan_output mkfs.btrfs -f "${TARGET_DISK}2"
+    cyan_output $BOOT_MKFS "$BOOT_PART"
+    cyan_output mkfs.btrfs -f "$ROOT_PART"
 
     # Mounting and subvolumes
-    cyan_output mount "${TARGET_DISK}2" /mnt
+    cyan_output mount "$ROOT_PART" /mnt
     cyan_output btrfs subvolume create /mnt/@
     cyan_output btrfs subvolume create /mnt/@home
     cyan_output btrfs subvolume create /mnt/@root
@@ -101,30 +132,24 @@ perform_installation() {
     cyan_output btrfs subvolume create /mnt/@tmp
     cyan_output btrfs subvolume create /mnt/@log
     cyan_output btrfs subvolume create /mnt/@cache
-    cyan_output btrfs subvolume create /mnt/@/var/lib/portables
-    cyan_output btrfs subvolume create /mnt/@/var/lib/machines
     cyan_output umount /mnt
 
     # Remount with compression
-    cyan_output mount -o subvol=@,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt
+    cyan_output mount -o subvol=@,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt
     cyan_output mkdir -p /mnt/boot/efi
-    cyan_output mount "${TARGET_DISK}1" /mnt/boot/efi
+    cyan_output mount "$BOOT_PART" /mnt/boot/efi
     cyan_output mkdir -p /mnt/home
     cyan_output mkdir -p /mnt/root
     cyan_output mkdir -p /mnt/srv
     cyan_output mkdir -p /mnt/tmp
     cyan_output mkdir -p /mnt/var/cache
     cyan_output mkdir -p /mnt/var/log
-    cyan_output mkdir -p /mnt/var/lib/portables
-    cyan_output mkdir -p /mnt/var/lib/machines
-    cyan_output mount -o subvol=@home,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/home
-    cyan_output mount -o subvol=@root,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/root
-    cyan_output mount -o subvol=@srv,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/srv
-    cyan_output mount -o subvol=@tmp,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/tmp
-    cyan_output mount -o subvol=@log,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/log
-    cyan_output mount -o subvol=@cache,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/cache
-    cyan_output mount -o subvol=@/var/lib/portables,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/lib/portables
-    cyan_output mount -o subvol=@/var/lib/machines,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "${TARGET_DISK}2" /mnt/var/lib/machines
+    cyan_output mount -o subvol=@home,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/home
+    cyan_output mount -o subvol=@root,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/root
+    cyan_output mount -o subvol=@srv,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/srv
+    cyan_output mount -o subvol=@tmp,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/tmp
+    cyan_output mount -o subvol=@log,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/log
+    cyan_output mount -o subvol=@cache,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL "$ROOT_PART" /mnt/var/cache
 
     # Install base system
     cyan_output setup-disk -m sys /mnt
@@ -154,18 +179,16 @@ setup-timezone -z "$TIMEZONE"
 setup-keymap "$KEYMAP" "$KEYMAP"
 echo "$HOSTNAME" > /etc/hostname
 
-# Generate fstab
+# Generate fstab with correct boot partition type
 cat << EOF > /etc/fstab
-${TARGET_DISK}1 /boot/efi vfat defaults 0 2
-${TARGET_DISK}2 / btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@ 0 1
-${TARGET_DISK}2 /home btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@home 0 2
-${TARGET_DISK}2 /root btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@root 0 2
-${TARGET_DISK}2 /srv btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@srv 0 2
-${TARGET_DISK}2 /tmp btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@tmp 0 2
-${TARGET_DISK}2 /var/log btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@log 0 2
-${TARGET_DISK}2 /var/cache btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@cache 0 2
-${TARGET_DISK}2 /var/lib/portables btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@/var/lib/portables 0 2
-${TARGET_DISK}2 /var/lib/machines btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@/var/lib/machines 0 2
+$BOOT_PART /boot/efi $BOOT_FORMAT defaults 0 2
+$ROOT_PART / btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@ 0 1
+$ROOT_PART /home btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@home 0 2
+$ROOT_PART /root btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@root 0 2
+$ROOT_PART /srv btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@srv 0 2
+$ROOT_PART /tmp btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@tmp 0 2
+$ROOT_PART /var/log btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@log 0 2
+$ROOT_PART /var/cache btrfs rw,noatime,compress=zstd:$COMPRESSION_LEVEL,compress-force=zstd:$COMPRESSION_LEVEL,subvol=@cache 0 2
 EOF
 
 # Update repositories and install desktop environment
@@ -283,8 +306,8 @@ CHROOT
             2)
                 clear
                 echo -e "${CYAN}Entering chroot...${NC}"
-                mount "${TARGET_DISK}1" /mnt/boot/efi
-                mount -o subvol=@ "${TARGET_DISK}2" /mnt
+                mount "$BOOT_PART" /mnt/boot/efi
+                mount -o subvol=@ "$ROOT_PART" /mnt
                 mount -t proc none /mnt/proc
                 mount --rbind /dev /mnt/dev
                 mount --rbind /sys /mnt/sys
@@ -304,7 +327,7 @@ CHROOT
 }
 
 configure_installation() {
-    TARGET_DISK=$(dialog --title "Target Disk" --inputbox "Enter target disk (e.g. /dev/sda):" 8 40 3>&1 1>&2 2>&3)
+    TARGET_DISK=$(dialog --title "Target Disk" --inputbox "Enter target disk (e.g. /dev/sda, /dev/nvme0n1, /dev/mmcblk0):" 8 50 3>&1 1>&2 2>&3)
     HOSTNAME=$(dialog --title "Hostname" --inputbox "Enter hostname:" 8 40 3>&1 1>&2 2>&3)
     TIMEZONE=$(dialog --title "Timezone" --inputbox "Enter timezone (e.g. UTC):" 8 40 3>&1 1>&2 2>&3)
     KEYMAP=$(dialog --title "Keymap" --inputbox "Enter keymap (e.g. us):" 8 40 3>&1 1>&2 2>&3)
@@ -333,6 +356,9 @@ configure_installation() {
         "runit" "Runit init system" \
         "s6" "s6 init system" 3>&1 1>&2 2>&3)
     
+    # Boot partition format selection (only FAT32 and EXT4)
+    select_boot_format
+    
     COMPRESSION_LEVEL=$(dialog --title "Compression Level" --inputbox "Enter BTRFS compression level (1-22, default is 22):" 8 40 22 3>&1 1>&2 2>&3)
     
     # Validate compression level
@@ -344,7 +370,7 @@ configure_installation() {
 
 main_menu() {
     while true; do
-        choice=$(dialog --clear --title "Alpine Btrfs Installer v1.03 12-07-2025" \
+        choice=$(dialog --clear --title "Alpine Btrfs Installer v1.02 12-07-2025" \
                        --menu "Select option:" 15 45 6 \
                        1 "Configure Installation" \
                        2 "Find Fastest Mirrors" \
